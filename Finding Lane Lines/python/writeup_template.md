@@ -1,4 +1,4 @@
-# **Finding Lane Lines on the Road*- 
+# **Finding Lane Lines on the Road**
 
 The goals / steps of this project are the following:
 - Make a pipeline that finds lane lines on the road
@@ -16,15 +16,15 @@ The implemented pipeline for a single frame processing consists of 5 steps:
 #### 1.1 Image Pre-processing
  RGB image converts to grayscale image to simplify image analysis and shrink calculations dimensions.
  Then Gaussian blur and dilation are applied to eliminate noise and insignificant details detection in further step.
- ![Pre-processing: blur + dilation][test_images_output/dilated_solidYellowLeft.jpg]
+ ![Pre-processing: blur + dilation](test_images_output/dilated_solidYellowLeft.jpg)
 
 #### 1.2 Edges detection
 Canny edge detector with L2 norm is used to perform this step.
- ![Edges detection][test_images_output/edges_solidYellowLeft.jpg]
+ ![Edges detection](test_images_output/edges_solidYellowLeft.jpg)
 
 #### 1.3 Edges Post-processing
 To improve Hought Transform algorithm result edges bluring is used
-![Edges blur][test_images_output/blured_edges_solidYellowLeft.jpg]
+![Edges blur](test_images_output/blured_edges_solidYellowLeft.jpg)
 
 #### 1.4 Lines Detection
 The Probabilistic Hough Line Transform is used to detect straight lines.
@@ -39,7 +39,7 @@ Hought Transform returns a lot of lines, but we need only to lines.
 In this step horizontal lines, lines with a little slope are filters out.
 Lines with similar slopes and intercepts are merged into clusters. 
 Then average line is calculated for each cluster and extents to "region of interest" polygon borders.
-![Lines][test_images_output/lines_solidYellowLeft.jpg]
+![Lines](test_images_output/lines_solidYellowLeft.jpg)
 
 ### 2. Potential shortcomings and Improvments
 Challenge video and other videos which are used for testing purposes (https://www.youtube.com/watch?v=7HaJArMDKgI, https://youtu.be/Of5pGj6Obzo?t=385) shows some drawbacks of current implementation and pipeline:

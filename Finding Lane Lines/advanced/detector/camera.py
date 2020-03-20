@@ -18,7 +18,7 @@ class Camera(object):
         self.frame_h = frame_h
 
         # calculate perspective matrices
-        # self.calculate_perspective_matrices()
+        self.calculate_perspective_matrices(frame_w, frame_h)
 
     def calibrate(self, img_dir, grid):
         """ Calibrate camera """
@@ -99,18 +99,18 @@ class Camera(object):
         )
         return cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR)
 
-    def calculate_perspective_matrices(self):
+    def calculate_perspective_matrices(self, w, h):
         src_points = np.float32([
-            [],
-            [],
-            [],
-            []
+            [w / 2 - 63, h / 2 + 100],
+            [w / 6 - 10, h],
+            [w * 5 / 6 + 60, h],
+            [w / 2 + 68, h / 2 + 100]
         ])
         dst_points = np.float32([
-            [0, 0],                      # top-left
-            [self.frame_w, 0],           # top-right
-            [0, self.frame_h],           # bottom-left
-            [self.frame_w, self.frame_h] # bottom-right
+            [w / 4, 0],
+            [w / 4, h],
+            [w * 0.75, h],
+            [w * 0.75, 0]
         ])
         self.perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.perspective_matrix_inv = cv2.getPerspectiveTransform(dst_points, src_points)

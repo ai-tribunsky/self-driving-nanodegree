@@ -1,13 +1,16 @@
 #!/usr/bin/python3
 
 import argparse
-import time
+import glob
 import os.path
+import time
+
 import cv2
-from detector.detector import Detector
+import matplotlib.pyplot as plt
 from detector.camera import Camera
+from detector.detector import Detector
 
-
+# python3 run.py --width=1280 --height=720 --mode=image --image=test_images/test1.jpg --debug
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--mode', help='Detector mode: image, test-images, video, camera-test', default='test-images')
 parser.add_argument('-i', '--image', help='Image path for "image" mode')
@@ -26,12 +29,43 @@ frame_w = int(args.width)
 frame_h = int(args.height)
 debug = args.debug
 
+
 camera = Camera(frame_w=frame_w, frame_h=frame_h)
 camera.calibrate('camera_cal', (9, 6))
+detector = Detector(
+    camera=camera,
+    debug=debug,
+    debug_output_dir=os.path.dirname(os.path.abspath(__file__)) + '/output_images'
+)
 
-if debug:
+if mode == 'image':
+    frame = cv2.imread(image)
+    result = detector.process_frame(frame)
+    plt.imshow(result)
+    plt.title(image)
+    plt.show()
+elif mode == 'images-test':
+    for filename in glob.iglob('test_images/*.jpg'):
+        frame = cv2.imread(filename)
+        detector.cleanup()
+        result = detector.process_frame(frame)
+        plt.imshow(result)
+        plt.title(filename)
+        plt.show()
+elif mode == 'video':
+    video_name = os.path.basename(video)
+    dst = 'output_videos/' + video_name
+    if frame is None:
+        detector.process_video(video, dst)
+    else:
+        frame = float(frame)
+        result = detector.process_video_frame(video, frame)
+        plt.imshow(result)
+        plt.title('Frame: %s:%f' % (video_name, frame))
+        plt.show()
+elif mode == 'camera-test':
     print('==== Camera Calibration ===')
-    print('Distortion coeff:')
+    print('Distortion coefficients:')
     print(camera.distortion_coefficients)
     print('Camera Matrix:')
     print(camera.camera_matrix)
@@ -40,12 +74,13 @@ if debug:
     print('Perspective Transform:')
     print(camera.perspective_matrix)
 
-    # test distortions
-    print('== Distortions tests ==')
     img_files = [
-        'test_images/straight_lines1.jpg',
+        'test_images/straight_lines2.jpg',
         'test_images/test5.jpg'
     ]
+
+    # test distortions
+    print('== Distortions tests ==')
     for img_file in img_files:
         print(img_file)
         basename = os.path.basename(img_file)
@@ -75,3 +110,12 @@ if debug:
         cv2.imwrite('output_images/und2_' + basename, undistorted)
         print('  Undistort 2 not croped:', end_time)
 
+    # test perspective transformation
+    print('== Perspective transform tests ==')
+    for img_file in img_files:
+        img = cv2.imread(img_file)
+        perspective_matrix = camera.perspective_matrix
+        warped = camera.perspective_transform(img)
+        plt.subplot(121), plt.imshow(img), plt.title('Input')
+        plt.subplot(122), plt.imshow(warped), plt.title('Output')
+        plt.show()

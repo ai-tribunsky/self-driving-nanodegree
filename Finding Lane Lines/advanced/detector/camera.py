@@ -18,15 +18,7 @@ class Camera(object):
         self.frame_h = frame_h
 
         # calculate perspective matrices
-        src_points = np.float32([
-
-        ])
-        dst_points = np.float32([
-            [0, 0],            # top-left
-            [frame_w, 0],      # top-right
-            [0, frame_h],      # bottom-left
-            [frame_w, frame_h] # bottom-right
-        ])
+        # self.calculate_perspective_matrices()
 
     def calibrate(self, img_dir, grid):
         """ Calibrate camera """
@@ -73,8 +65,55 @@ class Camera(object):
             # crop the image
             x, y, w, h = self.roi
             return dst[y:y + h, x:x + w]
-        else:
-            return cv2.undistort(img, self.camera_matrix, self.distortion_coefficients, None, self.camera_matrix)
+
+        return cv2.undistort(img, self.camera_matrix, self.distortion_coefficients, None, self.camera_matrix)
+
+    def undistort2(self, img, crop=True):
+        """
+        Undistorts image with second approach
+        This approach shows x2 speed up vs Camera.undistort
+        """
+
+        if crop:
+            map_x, map_y = cv2.initUndistortRectifyMap(
+                self.camera_matrix,
+                self.distortion_coefficients,
+                None,
+                self.camera_matrix_refined,
+                (self.frame_w, self.frame_h),
+                cv2.CV_32FC1
+            )
+            dst = cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR)
+
+            # crop the image
+            x, y, w, h = self.roi
+            return dst[y:y + h, x:x + w]
+
+        map_x, map_y = cv2.initUndistortRectifyMap(
+            self.camera_matrix,
+            self.distortion_coefficients,
+            None,
+            self.camera_matrix,
+            (self.frame_w, self.frame_h),
+            cv2.CV_32FC1
+        )
+        return cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR)
+
+    def calculate_perspective_matrices(self):
+        src_points = np.float32([
+            [],
+            [],
+            [],
+            []
+        ])
+        dst_points = np.float32([
+            [0, 0],                      # top-left
+            [self.frame_w, 0],           # top-right
+            [0, self.frame_h],           # bottom-left
+            [self.frame_w, self.frame_h] # bottom-right
+        ])
+        self.perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+        self.perspective_matrix_inv = cv2.getPerspectiveTransform(dst_points, src_points)
 
     def perspective_transform(self, img):
         return cv2.warpPerspective(img, self.perspective_matrix, (self.frame_w, self.frame_h))

@@ -35,38 +35,37 @@ class Detector(object):
 
     def process_frame(self, frame):
         times = {}
-        start_time = time.time()
 
         # undistort frame
+        start_time = time.time()
         undistorted_frame = self.camera.undistort2(frame, crop=False)
-        if self.debug:
-            times['undistort'] = time.time()
+        times['undistort'] = time.time() - start_time
 
         # get lane lines pixels
+        start_time = time.time()
         lane_pixels = self._get_lane_lines_pixels(undistorted_frame)
+        times['lane_pixels'] = time.time() - start_time
         if self.debug:
-            times['lane_pixels'] = time.time()
             self._save_img(lane_pixels, 'lane_pixels')
 
         # build bird-eye-view
+        start_time = time.time()
         bird_eye_view = self.camera.perspective_transform(lane_pixels)
+        times['bird_eye_view'] = time.time() - start_time
         if self.debug:
-            times['bird_eye_view'] = time.time()
             self._save_img(bird_eye_view, 'bird_eye_view')
 
+        start_time = time.time()
         left_fit, left_x, left_y, right_fit, right_x, right_y = self._fit_lines(bird_eye_view)
+        times['fit_lines'] = time.time() - start_time
 
-        if self.debug:
-            print('====')
-            print('Process time')
-            total = 0
-            prev_time = start_time
-            for k in times:
-                time_k = times[k] - prev_time
-                print(k, '=', time_k)
-                total += time_k
-                prev_time = time_k
-            print('Total:', total)
+        print('====')
+        print('Process time')
+        total = 0
+        for k in times:
+            print(k, '=', times[k])
+            total += times[k]
+        print('Total:', total)
 
         return bird_eye_view
 
@@ -94,10 +93,10 @@ class Detector(object):
         S_color_binary = self._get_color_threshold_binary_img(S, (180, 255))
         if self.debug:
             self._save_img(S_color_binary, 's_color_binary')
-        color_filter = (S_color_binary == 1) | (V_color_binary == 1)
+        color_filter = (S_color_binary == 1)#| (V_color_binary == 1)
 
         combined = np.zeros_like(S)
-        combined[color_filter | color_filter] = 1
+        combined[gradient_filter | color_filter] = 1
 
         return combined
 
@@ -114,13 +113,13 @@ class Detector(object):
         binary[(scaled_sobel > threshold[0]) & (scaled_sobel <= threshold[1])] = 1
         return binary
 
-    def _fit_lines(self, img, windows=9, margin=100, minpix=50):
+    def _fit_lines(self, img, windows=6, margin=100, minpix=50):
         left_x, left_w, right_x, right_w = self._get_lines_start_positions(img)
         if self.debug:
             print('Lane lines pos: x=%f, w=%f; x=%f, w=%f' % (left_x, left_w, right_x, right_w))
             out_img = np.dstack((img, img, img))
 
-        window_height = self.frame_w // windows
+        window_height = self.frame_h // windows
 
         nonzero = img.nonzero()
         nonzero_y = np.array(nonzero[0])
@@ -195,7 +194,7 @@ class Detector(object):
         return left_fit, left_x, left_y, right_fit, right_x, right_y
 
     def _get_lines_start_positions(self, img):
-        histogram = np.sum(img[self.frame_h // 2:, 200:self.frame_w - 100], axis=0)
+        histogram = np.sum(img[self.frame_h // 2:, :], axis=0)
         if self.debug:
             plt.plot(histogram)
             plt.title('Lane pixels hist')
@@ -207,7 +206,7 @@ class Detector(object):
         right_x = midpoint + np.argmax(histogram[midpoint:])
         right_w = histogram[right_x]
 
-        return left_x + 200, left_w, right_x + 200, right_w
+        return left_x, left_w, right_x, right_w
 
     def _save_img(self, img, name):
         plt.imshow(img, cmap='gray')

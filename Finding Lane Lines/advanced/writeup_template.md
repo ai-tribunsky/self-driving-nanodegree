@@ -8,6 +8,7 @@ The goals / steps of this project are the following:
 * Apply a perspective transform to rectify binary image ("birds-eye view").
 * Detect lane pixels and fit to find the lane boundary.
 * Determine the curvature of the lane and vehicle position with respect to center.
+* Sanity check of detected lines.
 * Warp the detected lane boundaries back onto the original image.
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
@@ -32,8 +33,24 @@ Example for image detection: `python3 run.py --width=1280 --height=720 --mode=im
 
 Example for video detection: `python3 run.py --width=1280 --height=720 --mode=video --image=project_video`
 
+## Result
+### Test images
+![Test 1](output_images/test1.jpg)
+![Test 2](output_images/test2.jpg)
+![Test 3](output_images/test3.jpg)
+![Test 4](output_images/test4.jpg)
+![Test 5](output_images/test5.jpg)
+![Test 6](output_images/test6.jpg)
+![Straight lines 1](output_images/straight_lines1.jpg)
+![Straight lines 2](output_images/straight_lines2.jpg)
 
-## Camera Calibration
+### Test video
+[Project Video](output_videos/project_video.mp4)
+[Challenge Video](output_videos/challenge_video.mp4)
+[Harder Challenge Video](output_videos/challenge_video.mp4)
+
+## Pipeline
+### Step 0. Camera Calibration
 
 Camera calibration is required step to get undistorted frames and to build correct perspective transform.
 
@@ -43,12 +60,9 @@ and "image points, which represent corners points on a image side and they were 
 
 After getting camera matrix it was refined by OpenCV `getOptimalNewCameraMatrix`.
 
-
 Camera calibration implemented in [Camera class](detector/camera.py)
 
-
-## Pipeline
-### Undistort input image or frame 
+### Step 1. Undistort input image 
 There are two methods implemented for image undistrortion `undistort` and `undistort2` in [Camera class](detector/camera.py).
  
 undistort2 with rectification map technique shows better performance and used in this particular step.
@@ -59,7 +73,7 @@ Distorted image:
 Undistorted image:
 ![Undistorted Image](output_images/test1_undistorted.jpg)
 
-### Creating a thresholded binary image
+### Step 2. Creating a thresholded binary image
 The class is responsible for building thresholded binary image is [Detector](detector/detector.py)
 
 Algorithm is implemented in `_get_lane_lines_pixels` function
@@ -85,7 +99,7 @@ L channel gradient direction:
 Combined:
 ![Combined binary image](output_images/test1_gradient_combined.png)
 
-### Birds-eye-view
+### Step 3. Birds-eye-view
 To get birds-eye-view perspective transformation matrix calculation is needed. 
 
 This matrix defined in `calculate_perspective_matrices` function in [Camera](detector/camera.py) class.
@@ -103,6 +117,11 @@ Histogram:
 After lines pixels detection 2-nd polynomial fitting is performed:
 ![Polynomial fit](output_images/test1_lines_fit.png)
 
+### Step 4. Determine curvatures and ego vehicle offsets
+
+### Step 5. Sanity check
+
+### Step 6. Warping back and output visual information
 
 
 ## Discussion

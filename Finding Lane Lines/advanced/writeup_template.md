@@ -126,6 +126,10 @@ After lines pixels detection 2-nd polynomial fitting is performed:
 
 ## Discussion
 
-#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
-
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+There are a few issues with current implementation:
+- slow gradient thresholding. It takes 200-250ms, which is very poor performance for real-time detection.
+  Color thesholding and simpler gradients calculations may be used. 
+- nearby lines like road wrecks, lanes separators like in challenge video are mislead sliding window algorithm
+- hard sun still a big problem, shadows can be tackled with S and L channels combination
+- sharp turns another big issues for sliding window algorithm. In most difficult case one of the lane lines disappears from camera view as in "harder" video 
+  

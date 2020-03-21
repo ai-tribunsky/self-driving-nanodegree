@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 from moviepy.editor import VideoFileClip
 import matplotlib.pyplot as plt
-import lane
+from detector.lane import Lane
+from detector.line import LaneLine
 
 
 class Detector(object):
@@ -14,7 +15,7 @@ class Detector(object):
         self.frame_w = camera.frame_w
         self.frame_h = camera.frame_h
 
-        self.lane = lane.Lane()
+        self.lane = Lane(buffer_size=10, debug=debug)
 
         self.debug = debug
         self.debug_output_dir = debug_output_dir
@@ -63,50 +64,20 @@ class Detector(object):
         left_start_x, left_w, right_start_x, right_w = self._get_lines_start_positions(bird_eye_view)
         left_line, right_line = self._fit_lines(bird_eye_view, left_start_x, right_start_x)
         times['fit_lines'] = time.time() - start_time
+        if self.debug:
+            print('Lane lines:')
+            print('  x=%f, w=%f' % (left_start_x, left_w))
+            print('  x=%f, w=%f' % (right_start_x, right_w))
 
         # calculate result lane lines properties
         start_time = time.time()
-        xm_per_pix = self.lane.get_xm_per_pix()
-        ym_per_pix = self.lane.get_ym_per_pix(self.frame_h)
-        left_curvature = self._get_line_curvature(left_fit, left_x, left_y, 'm', xm_per_pix, ym_per_pix)
-        right_curvature = self._get_line_curvature(right_fit, right_x, right_y, 'm', xm_per_pix, ym_per_pix)
-        times['lines_curvatures'] = time.time() - start_time
-        if self.debug:
-            print('Lane lines:')
-            print('  x=%f, w=%f, c=%fm' % (left_start_x, left_w, left_curvature))
-            print('  x=%f, w=%f, c=%fm' % (right_start_x, right_w, right_curvature))
-            print('  Curvature diff:', np.abs(left_curvature - right_curvature))
-            print('  Fit diff:', np.subtract(left_fit, right_fit))
+        self.lane.update_lines(left_line, right_line, (self.frame_w//2, self.frame_h - 1))
+        times['update_lines'] = time.time() - start_time
 
-        # draw lane boundaries
+        # draw lane boundaries and lane info
         start_time = time.time()
-        frame_with_lane = self._draw_lane_boundaries(bird_eye_view, undistorted_frame, left_fit, right_fit)
+        frame_with_lane = self._draw_lane(bird_eye_view, undistorted_frame)
         times['drawing'] = time.time() - start_time
-
-        # display lane info
-        y_eval = self.frame_h - 1
-        left_distance = (self.frame_w / 2 - (
-                left_fit[0] * y_eval ** 2 + left_fit[1] * y_eval + left_fit[2])) * xm_per_pix
-        right_distance = ((right_fit[0] * y_eval ** 2 + right_fit[1] * y_eval + right_fit[
-            2]) - self.frame_w / 2) * xm_per_pix
-        cv2.putText(
-            frame_with_lane,
-            'Curvatures: {}m {}m'.format(np.round(left_curvature, 2), np.round(right_curvature)),
-            (10, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (255, 255, 255),
-            2
-        )
-        cv2.putText(
-            frame_with_lane,
-            'Lane offsets: {}m {}m'.format(np.round(left_distance, 2), np.round(right_distance)),
-            (10, 100),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (255, 255, 255),
-            2
-        )
 
         print('\n\nProcess time:')
         total = 0
@@ -185,13 +156,9 @@ class Detector(object):
         binary_output[(direction >= threshold[0]) & (direction <= threshold[1])] = 1
         return binary_output
 
-    def _fit_lines(self, img, left_start_x, right_start_x, windows=6, margin=100, minpix=50):
+    def _fit_lines(self, img, left_start_x, right_start_x, windows=9, margin=50, minpix=50):
         if self.debug:
             out_img = np.dstack((img, img, img))
-
-        # add start points
-        img[self.frame_h - 10:, left_start_x - 10:left_start_x + 10] = 1
-        img[self.frame_h - 10:, right_start_x - 10:right_start_x + 10] = 1
 
         nonzero = img.nonzero()
         nonzero_y = np.array(nonzero[0])
@@ -253,21 +220,21 @@ class Detector(object):
         right_fit = np.polyfit(right_y, right_x, 2)
 
         y_fit = np.linspace(0, self.frame_h - 1, self.frame_h)
-        left_line = line.LaneLine()
+        left_line = LaneLine()
         left_line.x_start = left_start_x
         left_line.fit = left_fit
-        left_fit.x_fit = left_fit[0] * y_fit ** 2 + left_fit[1] * y_fit + left_fit[2]
-        left_fit.y_fit = y_fit
-        left_fit.detected_line_x = left_x
-        left_fit.detected_line_y = left_y
+        left_line.x_fit = left_fit[0] * y_fit ** 2 + left_fit[1] * y_fit + left_fit[2]
+        left_line.y_fit = y_fit
+        left_line.detected_x = left_x
+        left_line.detected_y = left_y
 
-        right_line = line.LaneLine()
+        right_line = LaneLine()
         right_line.x_start = right_start_x
         right_line.fit = right_fit
-        right_fit.x_fit = right_fit[0] * y_fit ** 2 + right_fit[1] * y_fit + right_fit[2]
-        right_fit.y_fit = y_fit
-        right_fit.detected_line_x = right_x
-        right_fit.detected_line_y = right_y
+        right_line.x_fit = right_fit[0] * y_fit ** 2 + right_fit[1] * y_fit + right_fit[2]
+        right_line.y_fit = y_fit
+        right_line.detected_x = right_x
+        right_line.detected_y = right_y
 
         if self.debug:
             out_img[left_y, left_x] = [255, 0, 0]
@@ -295,21 +262,44 @@ class Detector(object):
 
         return left_x, left_w, right_x, right_w
 
-    def _draw_lane_boundaries(self, warped, dst_img, left_fit, right_fit):
+    def _draw_lane(self, warped, dst_img):
+        # calculate average lines
+        left_line = self.lane.get_best_left_line()
+        right_line = self.lane.get_best_right_line()
+
+        # draw lane boundaries
         warp_zero = np.zeros_like(warped).astype(np.uint8)
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
 
-        plot_y = np.linspace(0, self.frame_h - 1, self.frame_h)
-        left_fit_x = left_fit[0] * plot_y ** 2 + left_fit[1] * plot_y + left_fit[2]
-        right_fit_x = right_fit[0] * plot_y ** 2 + right_fit[1] * plot_y + right_fit[2]
-
-        pts_left = np.array([np.transpose(np.vstack([left_fit_x, plot_y]))])
-        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fit_x, plot_y])))])
+        pts_left = np.array([np.transpose(np.vstack([left_line.x_fit, left_line.y_fit]))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_line.x_fit, right_line.y_fit])))])
         pts = np.hstack((pts_left, pts_right))
         cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
 
         warped_back = self.camera.perspective_transform_back(color_warp)
-        return cv2.addWeighted(dst_img, 1, warped_back, 0.3, 0)
+        img_with_lane = cv2.addWeighted(dst_img, 1, warped_back, 0.3, 0)
+
+        # display lines info
+        cv2.putText(
+            img_with_lane,
+            'Curvatures: {}m {}m'.format(np.round(left_line.curvature, 2), np.round(right_line.curvature)),
+            (10, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2
+        )
+        cv2.putText(
+            img_with_lane,
+            'Offsets: {}m {}m'.format(np.round(left_line.offset, 2), np.round(right_line.offset, 2)),
+            (10, 100),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2
+        )
+
+        return img_with_lane
 
     def _save_img(self, img, name):
         plt.imshow(img, cmap='gray')

@@ -158,7 +158,7 @@ class Detector(object):
         binary_output[(direction >= threshold[0]) & (direction <= threshold[1])] = 1
         return binary_output
 
-    def _fit_lines(self, img, left_start_x, right_start_x, windows=9, margin=50, minpix=50):
+    def _fit_lines(self, img, left_start_x, right_start_x, windows=6, margin=100, minpix=50):
         if self.debug:
             out_img = np.dstack((img, img, img))
 

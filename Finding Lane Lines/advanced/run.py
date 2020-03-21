@@ -46,7 +46,7 @@ detector = Detector(
 if mode == 'image':
     frame = cv2.imread(image)
     result = detector.process_frame(frame)
-    plt.imshow(result)
+    plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
     plt.title(image)
     plt.show()
 elif mode == 'images-test':
@@ -54,7 +54,8 @@ elif mode == 'images-test':
         frame = cv2.imread(filename)
         detector.cleanup()
         result = detector.process_frame(frame)
-        plt.imshow(result)
+        cv2.imwrite('output_images/' + os.path.basename(filename), result)
+        plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
         plt.title(filename)
         plt.show()
 elif mode == 'video':
@@ -65,7 +66,7 @@ elif mode == 'video':
     else:
         frame = float(frame)
         result = detector.process_video_frame(video, frame)
-        plt.imshow(result)
+        plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
         plt.title('Frame: %s:%f' % (video_name, frame))
         plt.show()
 elif mode == 'camera-test':

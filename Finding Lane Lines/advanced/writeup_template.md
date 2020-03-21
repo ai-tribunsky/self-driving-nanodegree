@@ -70,6 +70,39 @@ Extracting lane lines pixels was performed in following steps:
 - thresholding by magnitude and direction
 - merging results of thresholding on S and L channels
 
+S channel gradient magnitude:
+![S channel gradient magnitude](output_images/test1_s_gradient_mag.png)
+
+S channel gradient direction:
+![S channel gradient direction](output_images/test1_s_gradient_dir.png)
+
+L channel gradient magnitude:
+![L channel gradient magnitude](output_images/test1_l_gradient_mag.png)
+
+L channel gradient direction:
+![L channel gradient direction](output_images/test1_l_gradient_dir.png)
+
+Combined:
+![Combined binary image](output_images/test1_gradient_combined.png)
+
+### Birds-eye-view
+To get birds-eye-view perspective transformation matrix calculation is needed. 
+
+This matrix defined in `calculate_perspective_matrices` function in [Camera](detector/camera.py) class.
+
+Binary thresholded image after perspective transformation:
+![Birds-eye-view](output_images/test1_bird_eye_view.png)
+
+### Lane lines pixels detecting and fitting
+Detection and fitting implemented in `_fit_lines` function in `advanced/detector/detector.py:161`
+and uses histogram peaks to determine starting positions and sliding window algorithm to detect lines pixels.
+
+Histogram:
+![Histogram](output_images/test1_hist.png)
+
+After lines pixels detection 2-nd polynomial fitting is performed:
+![Polynomial fit](output_images/test1_lines_fit.png)
+
 
 
 ## Discussion

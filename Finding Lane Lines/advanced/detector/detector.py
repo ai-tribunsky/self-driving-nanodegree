@@ -44,20 +44,22 @@ class Detector(object):
         start_time = time.time()
         undistorted_frame = self.camera.undistort2(frame, crop=False)
         times['undistort'] = time.time() - start_time
+        if self.debug:
+            self._show_img(undistorted_frame, 'undistorted_frame', cmap=None)
 
         # get lane lines pixels
         start_time = time.time()
         lane_pixels = self._get_lane_lines_pixels(undistorted_frame)
         times['lane_pixels'] = time.time() - start_time
         if self.debug:
-            self._save_img(lane_pixels, 'lane_pixels')
+            self._show_img(lane_pixels, 'lane_pixels', 'gray')
 
         # build bird-eye-view
         start_time = time.time()
         bird_eye_view = self.camera.perspective_transform(lane_pixels)
         times['bird_eye_view'] = time.time() - start_time
         if self.debug:
-            self._save_img(bird_eye_view, 'bird_eye_view')
+            self._show_img(bird_eye_view, 'bird_eye_view', 'gray')
 
         # fit lines
         start_time = time.time()
@@ -114,11 +116,11 @@ class Detector(object):
         gradient_filter = ((S_gradient_binary == 1) & (S_gradient_dir_binary == 1)) | (
                 (L_gradient_binary == 1) & (L_gradient_dir_binary == 1))
         if self.debug:
-            self._save_img(S_gradient_binary, 'S_gradient_binary')
-            self._save_img(L_gradient_binary, 'L_gradient_binary')
-            self._save_img(S_gradient_dir_binary, 'S_gradient_dir_binary')
-            self._save_img(L_gradient_dir_binary, 'L_gradient_dir_binary')
-            self._save_img(gradient_filter, 'gradient_filter')
+            self._show_img(S_gradient_binary, 'S_gradient_binary', 'gray')
+            self._show_img(L_gradient_binary, 'L_gradient_binary', 'gray')
+            self._show_img(S_gradient_dir_binary, 'S_gradient_dir_binary', 'gray')
+            self._show_img(L_gradient_dir_binary, 'L_gradient_dir_binary', 'gray')
+            self._show_img(gradient_filter, 'gradient_filter', 'gray')
 
         # color filter
         # L_color_binary = self._get_color_binary_img(L, (200, 255))
@@ -301,9 +303,9 @@ class Detector(object):
 
         return img_with_lane
 
-    def _save_img(self, img, name):
-        plt.imshow(img, cmap='gray')
+    def _show_img(self, img, name, cmap=None):
+        if cmap is None:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        plt.imshow(img, cmap=cmap)
         plt.title(name)
         plt.show()
-
-        # cv2.imwrite(self.debug_output_dir + '/' + name + '.jpg', img)

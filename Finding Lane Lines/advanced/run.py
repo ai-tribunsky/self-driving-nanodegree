@@ -10,7 +10,12 @@ import matplotlib.pyplot as plt
 from detector.camera import Camera
 from detector.detector import Detector
 
-# python3 run.py --width=1280 --height=720 --mode=image --image=test_images/test1.jpg --debug
+"""
+Run:
+python3 run.py --width=1280 --height=720 --mode=image --image=test_images/test1.jpg --debug
+python3 run.py --width=1280 --height=720 --mode=video --video=project_video.mp4
+"""
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--mode', help='Detector mode: image, test-images, video, camera-test', default='test-images')
 parser.add_argument('-i', '--image', help='Image path for "image" mode')

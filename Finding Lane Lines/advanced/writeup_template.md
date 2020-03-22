@@ -119,10 +119,49 @@ After lines pixels detection 2-nd polynomial fitting is performed:
 
 ### Step 4. Determine curvatures and ego vehicle offsets
 
+Radius of curvature calculates in meters around vehicle position by M.Bourne formula.
+
+Implementation can be found at `detector/lane.py:135` in [_get_line_curvature](detector/lane.py) function.
+
+To convert calculation result from pixel space ot real-world space x-s and y-s must be set in meters.
+
+To perform conversion from pixels to meters we assume that lane is about 30 meters long and 3.7 meters wide.
+
+And conversation coefficients calculate as follows:
+```python
+x_start_diff = right_line.x_start - left_line.x_start  # difference in x between lan lines starting positions
+xm_per_px = 3.7 / x_start_diff
+ym_per_px = 30 / max_y                                 # max_y in particular case is height of visible area 
+```
+
+To calculate vehicle offsets we assume that vehicle position is in lower center of an image.
+
+And we just calculate difference between ego position and lane lines starting positions and convert results with coefficients 
+xm_per_px and ym_per_px described above.
+
 ### Step 5. Sanity check
+Sanity check step is required to reject invalid detections which can be appear during hard illumination conditions,
+road wrecks and extreme lane curvature.
 
+Firstly lines with crashed polyfit coefficients are discarded.
+
+Then line curvature compared against valid interval: 300-10000m. Invalid lines marked as not detected.
+
+After that polyfit coefficients compared against previous detection if time difference with previous detection less than 1 second.
+Coefficients difference should not exceed 0.001, 0.4, 150 respectively.
+If time difference is more than 1s then all detection buffer is cleared.
+
+Sanity checks are performed in [update_lines](detector/lane.py) function at advanced/detector/lane.py:26
+ 
 ### Step 6. Warping back and output visual information
+Implemented in [_draw_lane](detector/detector.py) function at detector/detector.py:267
 
+Lane boundaries drawing and visual information output takes 5 steps:
+- getting average lane lines fitted x-s and y-s from detections buffer to get smooth lines
+- drawing trapezoidal poly form according lines x-s and y-s on a bird-eye view image
+- warping back by perspective transform with inverted perspective matrix `detector/camera.py:121`
+- alpha-blending with source undistorted image
+- text outputting with curvatures and offsets
 
 ## Discussion
 

@@ -46,7 +46,9 @@ Example for video detection: `python3 run.py --width=1280 --height=720 --mode=vi
 
 ### Test video
 [Project Video](output_videos/project_video.mp4)
+
 [Challenge Video](output_videos/challenge_video.mp4)
+
 [Harder Challenge Video](output_videos/challenge_video.mp4)
 
 ## Pipeline
@@ -63,7 +65,7 @@ After getting camera matrix it was refined by OpenCV `getOptimalNewCameraMatrix`
 Camera calibration implemented in [Camera class](detector/camera.py)
 
 ### Step 1. Undistort input image 
-There are two methods implemented for image undistrortion `undistort` and `undistort2` in [Camera class](detector/camera.py).
+There are two methods implemented for image undistrortion [undistort](detector/camera.py#L59) and [undistort2](detector/camera.py#L71) in [Camera class](detector/camera.py#L59).
  
 undistort2 with rectification map technique shows better performance and used in this particular step.
 
@@ -74,9 +76,7 @@ Undistorted image:
 ![Undistorted Image](output_images/test1_undistorted.jpg)
 
 ### Step 2. Creating a thresholded binary image
-The class is responsible for building thresholded binary image is [Detector](detector/detector.py)
-
-Algorithm is implemented in `_get_lane_lines_pixels` function
+The function is responsible for building thresholded binary image is [_get_lane_lines_pixels](detector/detector.py#L93) in [Detector](detector/detector.py) class
 
 Extracting lane lines pixels was performed in following steps:
 - converting to HSL color scheme
@@ -107,7 +107,7 @@ Combined:
 ### Step 3. Birds-eye-view
 To get birds-eye-view perspective transformation matrix calculation is needed. 
 
-This matrix defined in `calculate_perspective_matrices` function in [Camera](detector/camera.py) class.
+This matrix defined in [calculate_perspective_matrices](detector/camera.py#L102) function in [Camera](detector/camera.py) class.
 
 Binary thresholded image after perspective transformation:
 
@@ -129,7 +129,7 @@ After lines pixels detection 2-nd polynomial fitting is performed:
 
 Radius of curvature calculates in meters around vehicle position by M.Bourne formula.
 
-Implementation can be found at `detector/lane.py:135` in [_get_line_curvature](detector/lane.py) function.
+Implementation can be found in [_get_line_curvature](detector/lane.py#L135) function at [detector/lane.py:135](detector/lane.py#L135).
 
 To convert calculation result from pixel space ot real-world space x-s and y-s must be set in meters.
 
@@ -159,10 +159,10 @@ After that polyfit coefficients compared against previous detection if time diff
 Coefficients difference should not exceed 0.001, 0.4, 150 respectively.
 If time difference is more than 1s then all detection buffer is cleared.
 
-Sanity checks are performed in [update_lines](detector/lane.py) function at advanced/detector/lane.py:26
+Sanity checks are performed in [update_lines](detector/lane.py#L26) function at [detector/lane.py:26](detector/lane.py#L26)
  
 ### Step 6. Warping back and output visual information
-Implemented in [_draw_lane](detector/detector.py) function at detector/detector.py:267
+Implemented in [_draw_lane](detector/detector.py#L267) function at [detector/detector.py:267](detector/detector.py#L267)
 
 Lane boundaries drawing and visual information output takes 5 steps:
 - getting average lane lines fitted x-s and y-s from detections buffer to get smooth lines

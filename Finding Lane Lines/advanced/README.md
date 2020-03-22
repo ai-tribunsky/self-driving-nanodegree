@@ -73,7 +73,7 @@ Distorted image:
 ![Basic Image](test_images/test1.jpg)
 
 Undistorted image:
-![Undistorted Image](output_images/test1_undistorted.jpg)
+![Undistorted Image](output_images/test1_undistorted.png)
 
 ### Step 2. Creating a thresholded binary image
 The function is responsible for building thresholded binary image is [_get_lane_lines_pixels](detector/detector.py#L93) in [Detector](detector/detector.py) class
@@ -84,24 +84,10 @@ Extracting lane lines pixels was performed in following steps:
 - thresholding by magnitude and direction
 - merging results of thresholding on S and L channels
 
-S channel gradient magnitude:
-
 ![S channel gradient magnitude](output_images/test1_s_gradient_mag.png)
-
-S channel gradient direction:
-
 ![S channel gradient direction](output_images/test1_s_gradient_dir.png)
-
-L channel gradient magnitude:
-
 ![L channel gradient magnitude](output_images/test1_l_gradient_mag.png)
-
-L channel gradient direction:
-
 ![L channel gradient direction](output_images/test1_l_gradient_dir.png)
-
-Combined:
-
 ![Combined binary image](output_images/test1_gradient_combined.png)
 
 ### Step 3. Birds-eye-view

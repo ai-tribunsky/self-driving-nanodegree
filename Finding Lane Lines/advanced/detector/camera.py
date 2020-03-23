@@ -1,6 +1,7 @@
-import numpy as np
-import cv2
 import glob
+
+import cv2
+import numpy as np
 
 
 class Camera(object):
@@ -12,6 +13,7 @@ class Camera(object):
     roi = None
     perspective_matrix = None
     perspective_matrix_inv = None
+    perspective_dst_points = None
 
     def __init__(self, frame_w, frame_h):
         self.frame_w = frame_w
@@ -100,23 +102,42 @@ class Camera(object):
         return cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR)
 
     def calculate_perspective_matrices(self, w, h):
-        src_points = np.float32([
-            [w / 2 - 63, h / 2 + 100],
-            [w / 6 - 10, h],
-            [w * 5 / 6 + 60, h],
-            [w / 2 + 68, h / 2 + 100]
-        ])
-        dst_points = np.float32([
-            [w / 4, 0],
-            [w / 4, h],
-            [w * 0.75, h],
-            [w * 0.75, 0]
-        ])
+        # src_points = np.float32([
+        #     [w / 2 - 55, h / 2 + 100],
+        #     [w / 6 - 10, h],
+        #     [w * 5 / 6 + 60, h],
+        #     [w / 2 + 55, h / 2 + 100]
+        # ])
+        # dst_points = np.float32([
+        #     [w / 4, 0],
+        #     [w / 4, h],
+        #     [w * 0.75, h],
+        #     [w * 0.75, 0]
+        # ])
+        # src_points = np.float32([
+        #     [581, 477],
+        #     [699, 477],
+        #     [896, 675],
+        #     [384, 675]
+        # ])
+        # dst_points = np.float32([
+        #     [384, 0],
+        #     [896, 0],
+        #     [896, 720],
+        #     [384, 720]
+        # ])
+
+        src_points = np.float32([[0, 223], [1207, 223], [0, 0], [1280, 0]])
+        dst_points = np.float32([[561, 223], [703, 223], [0, 0], [1280, 0]])
+
         self.perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.perspective_matrix_inv = cv2.getPerspectiveTransform(dst_points, src_points)
+        self.perspective_dst_points = dst_points
 
     def perspective_transform(self, img):
-        return cv2.warpPerspective(img, self.perspective_matrix, (self.frame_w, self.frame_h))
+        shape = img.shape
+        return cv2.warpPerspective(img, self.perspective_matrix, (shape[1], shape[0]))
 
     def perspective_transform_back(self, img):
-        return cv2.warpPerspective(img, self.perspective_matrix_inv, (self.frame_w, self.frame_h))
+        shape = img.shape
+        return cv2.warpPerspective(img, self.perspective_matrix_inv, (shape[1], shape[0]))

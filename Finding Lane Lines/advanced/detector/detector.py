@@ -15,13 +15,15 @@ class Detector(object):
         self.frame_w = camera.frame_w
         self.frame_h = camera.frame_h
 
-        self.lane = Lane(buffer_size=10, debug=debug)
+        self.roi_w = self.frame_w
+        self.roi_h = 223
+        self.lane = Lane(self.roi_w, self.roi_h, buffer_size=10, debug=debug)
 
         self.debug = debug
         self.debug_output_dir = debug_output_dir
 
     def cleanup(self):
-        pass
+        self.lane = Lane(self.frame_w, self.frame_h, buffer_size=10, debug=self.debug)
 
     def process_video(self, src, dst, subclip=None):
         if subclip is None:
@@ -47,9 +49,16 @@ class Detector(object):
         if self.debug:
             self._show_img(undistorted_frame, 'undistorted_frame', cmap=None)
 
+        # get roi
+        hood_pos_y = self.frame_h - 47  # 47 is a hood height
+        roi_start_y = hood_pos_y - self.roi_h
+        roi = undistorted_frame[roi_start_y:hood_pos_y, :, :]
+        if self.debug:
+            self._show_img(roi, 'roi', cmap=None)
+
         # get lane lines pixels
         start_time = time.time()
-        lane_pixels = self._get_lane_lines_pixels(undistorted_frame)
+        lane_pixels = self._get_lane_lines_pixels(roi)
         times['lane_pixels'] = time.time() - start_time
         if self.debug:
             self._show_img(lane_pixels, 'lane_pixels', 'gray')
@@ -59,7 +68,7 @@ class Detector(object):
         bird_eye_view = self.camera.perspective_transform(lane_pixels)
         times['bird_eye_view'] = time.time() - start_time
         if self.debug:
-            self._show_img(bird_eye_view, 'bird_eye_view', 'gray')
+            self._show_img(bird_eye_view, 'bird_eye_view', cmap='gray')
 
         # fit lines
         start_time = time.time()
@@ -73,7 +82,7 @@ class Detector(object):
 
         # calculate result lane lines properties
         start_time = time.time()
-        self.lane.update_lines(left_line, right_line, (self.frame_w//2, self.frame_h - 1))
+        self.lane.update_lines(left_line, right_line, (self.roi_w // 2, self.roi_h - 1))
         times['update_lines'] = time.time() - start_time
 
         # draw lane boundaries and lane info
@@ -91,9 +100,13 @@ class Detector(object):
         return frame_with_lane
 
     def _get_lane_lines_pixels(self, img):
+        # HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         HLS = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
         L = HLS[:, :, 1]
         S = HLS[:, :, 2]
+
+        # perform contrast/lightning correction
+        # @link https://docs.opencv.org/master/d5/daf/tutorial_py_histogram_equalization.html
 
         # gradient threshold
         kernel = 9
@@ -158,7 +171,7 @@ class Detector(object):
         binary_output[(direction >= threshold[0]) & (direction <= threshold[1])] = 1
         return binary_output
 
-    def _fit_lines(self, img, left_start_x, right_start_x, windows=6, margin=100, minpix=50):
+    def _fit_lines(self, img, left_start_x, right_start_x, windows=6, margin=20, minpix=10):
         if self.debug:
             out_img = np.dstack((img, img, img))
 
@@ -172,10 +185,11 @@ class Detector(object):
         left_lane_inds = []
         right_lane_inds = []
 
-        window_height = self.frame_h // windows
+        h, w = img.shape
+        window_height = h // windows
         for window in range(windows):
-            win_y_low = self.frame_h - (window + 1) * window_height
-            win_y_high = self.frame_h - window * window_height
+            win_y_low = h - (window + 1) * window_height
+            win_y_high = h - window * window_height
             win_x_left_low = left_x_current - margin
             win_x_left_high = left_x_current + margin
             win_x_right_low = right_x_current - margin
@@ -221,22 +235,18 @@ class Detector(object):
         right_y = nonzero_y[right_lane_inds]
         right_fit = np.polyfit(right_y, right_x, 2)
 
-        y_fit = np.linspace(0, self.frame_h - 1, self.frame_h)
+        y_fit = np.linspace(0, h - 1, h, dtype=np.float32)
         left_line = LaneLine()
         left_line.x_start = left_start_x
         left_line.fit = left_fit
         left_line.x_fit = left_fit[0] * y_fit ** 2 + left_fit[1] * y_fit + left_fit[2]
         left_line.y_fit = y_fit
-        left_line.detected_x = left_x
-        left_line.detected_y = left_y
 
         right_line = LaneLine()
         right_line.x_start = right_start_x
         right_line.fit = right_fit
         right_line.x_fit = right_fit[0] * y_fit ** 2 + right_fit[1] * y_fit + right_fit[2]
         right_line.y_fit = y_fit
-        right_line.detected_x = right_x
-        right_line.detected_y = right_y
 
         if self.debug:
             out_img[left_y, left_x] = [255, 0, 0]
@@ -250,16 +260,17 @@ class Detector(object):
         return left_line, right_line
 
     def _get_lines_start_positions(self, img):
-        histogram = np.sum(img[self.frame_h // 2:, :], axis=0)
+        histogram = np.sum(img, axis=0)
         if self.debug:
             plt.plot(histogram)
             plt.title('Lane pixels hist')
             plt.show()
 
-        midpoint = self.frame_w // 2
-        left_x = np.argmax(histogram[:midpoint])
+        margin = 100
+        midpoint = img.shape[1] // 2
+        left_x = (midpoint - margin) + np.argmax(histogram[(midpoint - margin):midpoint])
         left_w = histogram[left_x]
-        right_x = midpoint + np.argmax(histogram[midpoint:])
+        right_x = midpoint + np.argmax(histogram[midpoint:(midpoint + margin)])
         right_w = histogram[right_x]
 
         return left_x, left_w, right_x, right_w
@@ -270,16 +281,17 @@ class Detector(object):
         right_line = self.lane.get_best_right_line()
 
         # draw lane boundaries
-        warp_zero = np.zeros_like(warped).astype(np.uint8)
-        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+        color_warp = np.zeros_like(warped).astype(np.uint8)
+        color_warp = np.dstack([color_warp, color_warp, color_warp])
 
         pts_left = np.array([np.transpose(np.vstack([left_line.x_fit, left_line.y_fit]))])
         pts_right = np.array([np.flipud(np.transpose(np.vstack([right_line.x_fit, right_line.y_fit])))])
         pts = np.hstack((pts_left, pts_right))
         cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
-
-        warped_back = self.camera.perspective_transform_back(color_warp)
-        img_with_lane = cv2.addWeighted(dst_img, 1, warped_back, 0.3, 0)
+        roi_warped_back = self.camera.perspective_transform_back(color_warp)
+        full_size_img = np.zeros_like(dst_img).astype(np.uint8)
+        full_size_img[450:(450 + self.roi_h), :, :] = roi_warped_back
+        img_with_lane = cv2.addWeighted(dst_img, 1, full_size_img, 0.3, 0)
 
         # display lines info
         cv2.putText(
@@ -291,9 +303,15 @@ class Detector(object):
             (255, 255, 255),
             2
         )
+
+        y = self.roi_h - 1
+        left_x = left_line.x_fit[y]
+        right_x = right_line.x_fit[y]
+        lane_center = left_x + (right_x - left_x) / 2
+        offset = (self.roi_w / 2 - lane_center) * self.lane.xm_per_px
         cv2.putText(
             img_with_lane,
-            'Offsets: {}m {}m'.format(np.round(left_line.offset, 2), np.round(right_line.offset, 2)),
+            'Offset: {}m'.format(np.round(offset, 2)),
             (10, 100),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,

@@ -16,23 +16,21 @@ class Lane(object):
     curvature_min = 300
     curvature_max = 10000
 
-    xm_per_px = 1
-    ym_per_px = 1
-
-    def __init__(self, buffer_size=30, debug=False):
+    def __init__(self, roi_w, roi_h, buffer_size=30, debug=False):
+        self.roi_w = roi_w
+        self.roi_h = roi_h
         self.buffer_size = buffer_size
         self.debug = debug
 
+        self.xm_per_px = 3.675 / 85  # Lane width (12 ft in m) is ~85 px on image
+        self.ym_per_px = 3.048 / 24  # Dashed line length (10 ft in m) is ~24 px on image
+
     def update_lines(self, left_line, right_line, ego_pos):
-        x_start_diff = right_line.x_start - left_line.x_start
-        self.xm_per_px = 3.7 / x_start_diff
-        self.ym_per_px = 30 / np.max(left_line.detected_y)
+        # x_start_diff = right_line.x_start - left_line.x_start
 
         # calculate curvatures and offsets
         left_line.curvature = self._get_line_curvature(left_line)
         right_line.curvature = self._get_line_curvature(right_line)
-        left_line.offset = self._get_line_offset(left_line, ego_pos)
-        right_line.offset = self._get_line_offset(right_line, ego_pos)
 
         # check lines
         left_line.is_detected = self.is_line_detected(left_line, self.left_lines)
@@ -68,10 +66,10 @@ class Lane(object):
             return False
 
         # check curvature
-        if line.curvature < self.curvature_min or line.curvature > self.curvature_max:
-            if self.debug:
-                print('Left line invalid curvature:', line.curvature)
-            return False
+        # if line.curvature < self.curvature_min or line.curvature > self.curvature_max:
+        #     if self.debug:
+        #         print('Left line invalid curvature:', line.curvature)
+        #     return False
 
         # compare with previous detection
         current_time = time.time()
@@ -106,7 +104,6 @@ class Lane(object):
         x_fit = None
         y_fit = None
         curvatures = 0
-        offset = 0
         for k in lines:
             line = lines[k]
             if fit is not None:
@@ -121,7 +118,6 @@ class Lane(object):
 
             y_fit = line.y_fit
             curvatures += line.curvature
-            offset += line.offset
 
         count = len(lines.keys())
         average = LaneLine()
@@ -129,16 +125,21 @@ class Lane(object):
         average.x_fit = np.divide(x_fit, count)
         average.y_fit = y_fit
         average.curvature = curvatures / count
-        average.offset = offset / count
         return average
 
     def _get_line_curvature(self, line):
-        y = np.multiply(line.detected_y, self.ym_per_px)
-        x = np.multiply(line.detected_x, self.xm_per_px)
-        fit = np.polyfit(y, x, 2)
-        y_eval = np.max(line.detected_y) * self.ym_per_px
-        return np.power((1 + (2 * fit[0] * y_eval + fit[1]) ** 2), 1.5) / np.abs(2 * fit[0])
+        """
+            Gets line curvature in meters by M. Bourne formula
+            Scaled parabola: x = mx/(my ** 2) * a * (y**2) + (mx/my) * b * y + c
 
-    def _get_line_offset(self, line, ego_pos):
-        x, y = ego_pos
-        return np.abs(x - line.x_fit[y]) * self.xm_per_px
+        :param line:Line
+        :return:float
+        """
+
+        a, b, c = line.fit
+        mx = self.xm_per_px
+        my = self.ym_per_px
+        y = np.max(line.y_fit)
+        k = 2 * a * mx / my ** 2
+
+        return np.sqrt((1 + (k * y + (mx / my) * b) ** 2) ** 3) / np.abs(k)

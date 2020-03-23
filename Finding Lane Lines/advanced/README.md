@@ -123,9 +123,8 @@ To perform conversion from pixels to meters we assume that lane is about 30 mete
 
 And conversation coefficients calculate as follows:
 ```python
-x_start_diff = right_line.x_start - left_line.x_start  # difference in x between lan lines starting positions
-xm_per_px = 3.7 / x_start_diff
-ym_per_px = 30 / max_y                                 # max_y in particular case is height of visible area 
+self.xm_per_px = 3.675 / 85  # Lane width (12 ft in m) is ~85 px on image
+self.ym_per_px = 3.048 / 24  # Dashed line length (10 ft in m) is ~24 px on image
 ```
 
 To calculate vehicle offsets we assume that vehicle position is in lower center of an image.
@@ -155,7 +154,7 @@ Lane boundaries drawing and visual information output takes 5 steps:
 - drawing trapezoidal poly form according lines x-s and y-s on a bird-eye view image
 - warping back by perspective transform with inverted perspective matrix `detector/camera.py:121`
 - alpha-blending with source undistorted image
-- text outputting with curvatures and offsets
+- text outputting with curvatures and offset
 
 ## Discussion
 

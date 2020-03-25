@@ -13,8 +13,8 @@ class Lane(object):
 
     time_diff = 1.0
     fit_thresholds = [0.001, 0.4, 150]
-    curvature_min = 300
-    curvature_max = 10000
+    curvature_min = 170
+    curvature_max = 1400
 
     def __init__(self, roi_w, roi_h, buffer_size=30, debug=False):
         self.roi_w = roi_w
@@ -22,15 +22,13 @@ class Lane(object):
         self.buffer_size = buffer_size
         self.debug = debug
 
-        self.xm_per_px = 3.675 / 85  # Lane width (12 ft in m) is ~85 px on image
-        self.ym_per_px = 3.048 / 24  # Dashed line length (10 ft in m) is ~24 px on image
+        self.xm_per_px = 3.675 / 85
+        self.ym_per_px = 3.048 / 24
 
-    def update_lines(self, left_line, right_line, ego_pos):
-        # x_start_diff = right_line.x_start - left_line.x_start
-
+    def update_lines(self, left_line, right_line):
         # calculate curvatures and offsets
-        left_line.curvature = self._get_line_curvature(left_line)
-        right_line.curvature = self._get_line_curvature(right_line)
+        left_line.curvature = self._get_line_curvature_radius(left_line)
+        right_line.curvature = self._get_line_curvature_radius(right_line)
 
         # check lines
         left_line.is_detected = self.is_line_detected(left_line, self.left_lines)
@@ -103,7 +101,7 @@ class Lane(object):
         fit = None
         x_fit = None
         y_fit = None
-        curvatures = 0
+        curvatures = 0.0
         for k in lines:
             line = lines[k]
             if fit is not None:
@@ -116,8 +114,8 @@ class Lane(object):
             else:
                 x_fit = line.x_fit
 
-            y_fit = line.y_fit
             curvatures += line.curvature
+            y_fit = line.y_fit
 
         count = len(lines.keys())
         average = LaneLine()
@@ -127,10 +125,10 @@ class Lane(object):
         average.curvature = curvatures / count
         return average
 
-    def _get_line_curvature(self, line):
+    def _get_line_curvature_radius(self, line):
         """
-            Gets line curvature in meters by M. Bourne formula
-            Scaled parabola: x = mx/(my ** 2) * a * (y**2) + (mx/my) * b * y + c
+        Gets line curvature in meters by M. Bourne formula
+        Scaled parabola: x = mx/(my ** 2) * a * (y**2) + (mx/my) * b * y + c
 
         :param line:Line
         :return:float
@@ -140,6 +138,6 @@ class Lane(object):
         mx = self.xm_per_px
         my = self.ym_per_px
         y = np.max(line.y_fit)
-        k = 2 * a * mx / my ** 2
+        a_k = 2 * a * mx / my ** 2
 
-        return np.sqrt((1 + (k * y + (mx / my) * b) ** 2) ** 3) / np.abs(k)
+        return np.sqrt((1 + (a_k * y + (mx / my) * b) ** 2) ** 3) / np.abs(a_k)

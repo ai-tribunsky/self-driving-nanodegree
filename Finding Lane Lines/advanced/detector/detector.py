@@ -82,7 +82,7 @@ class Detector(object):
 
         # calculate result lane lines properties
         start_time = time.time()
-        self.lane.update_lines(left_line, right_line, (self.roi_w // 2, self.roi_h - 1))
+        self.lane.update_lines(left_line, right_line)
         times['update_lines'] = time.time() - start_time
 
         # draw lane boundaries and lane info
@@ -296,7 +296,7 @@ class Detector(object):
         # display lines info
         cv2.putText(
             img_with_lane,
-            'Curvatures: {}m {}m'.format(np.round(left_line.curvature, 2), np.round(right_line.curvature)),
+            'Curvature R: {}m'.format(np.round((left_line.curvature + right_line.curvature) / 2, 2)),
             (10, 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,

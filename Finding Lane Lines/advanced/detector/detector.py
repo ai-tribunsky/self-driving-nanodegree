@@ -17,13 +17,13 @@ class Detector(object):
 
         self.roi_w = self.frame_w
         self.roi_h = 223
-        self.lane = Lane(self.roi_w, self.roi_h, buffer_size=10, debug=debug)
+        self.lane = Lane(self.roi_w, self.roi_h, buffer_size=20, debug=debug)
 
         self.debug = debug
         self.debug_output_dir = debug_output_dir
 
     def cleanup(self):
-        self.lane = Lane(self.frame_w, self.frame_h, buffer_size=10, debug=self.debug)
+        self.lane = Lane(self.frame_w, self.frame_h, buffer_size=20, debug=self.debug)
 
     def process_video(self, src, dst, subclip=None):
         if subclip is None:
@@ -72,7 +72,7 @@ class Detector(object):
 
         # fit lines
         start_time = time.time()
-        left_start_x, left_w, right_start_x, right_w = self._get_lines_start_positions(bird_eye_view)
+        left_start_x, left_w, right_start_x, right_w = self._get_lines_start_positions(bird_eye_view[bird_eye_view.shape[0]//2:])
         left_line, right_line = self._fit_lines(bird_eye_view, left_start_x, right_start_x)
         times['fit_lines'] = time.time() - start_time
         if self.debug:
@@ -100,25 +100,24 @@ class Detector(object):
         return frame_with_lane
 
     def _get_lane_lines_pixels(self, img):
-        # HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         HLS = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
         L = HLS[:, :, 1]
         S = HLS[:, :, 2]
-
-        # perform contrast/lightning correction
-        # @link https://docs.opencv.org/master/d5/daf/tutorial_py_histogram_equalization.html
+        if self.debug:
+            self._show_img(L, 'L_channel_equal', 'gray')
+            self._show_img(S, 'S_channel_equal', 'gray')
 
         # gradient threshold
-        kernel = 9
+        kernel = 11
         S_gradient_x = np.abs(cv2.Sobel(S, cv2.CV_64F, 1, 0, ksize=kernel))
         S_gradient_y = np.abs(cv2.Sobel(S, cv2.CV_64F, 0, 1, ksize=kernel))
         L_gradient_x = np.abs(cv2.Sobel(L, cv2.CV_64F, 1, 0, ksize=kernel))
         L_gradient_y = np.abs(cv2.Sobel(L, cv2.CV_64F, 0, 1, ksize=kernel))
         S_gradient_binary = self._get_gradient_magnitude_binary_img(
-            S, S_gradient_x, S_gradient_y, threshold=(40, 255)
+            S, S_gradient_x, S_gradient_y, threshold=(30, 255)
         )
         L_gradient_binary = self._get_gradient_magnitude_binary_img(
-            L, L_gradient_x, L_gradient_y, threshold=(40, 255)
+            L, L_gradient_x, L_gradient_y, threshold=(50, 255)
         )
         S_gradient_dir_binary = self._get_gradient_direction_binary_img(
             S, S_gradient_x, S_gradient_y, threshold=(0.7, 1.3)
@@ -126,8 +125,7 @@ class Detector(object):
         L_gradient_dir_binary = self._get_gradient_direction_binary_img(
             L, L_gradient_x, L_gradient_y, threshold=(0.7, 1.3)
         )
-        gradient_filter = ((S_gradient_binary == 1) & (S_gradient_dir_binary == 1)) | (
-                (L_gradient_binary == 1) & (L_gradient_dir_binary == 1))
+        gradient_filter = ((S_gradient_binary == 1) & (S_gradient_dir_binary == 1)) | ((L_gradient_binary == 1) & (L_gradient_dir_binary == 1))
         if self.debug:
             self._show_img(S_gradient_binary, 'S_gradient_binary', 'gray')
             self._show_img(L_gradient_binary, 'L_gradient_binary', 'gray')
@@ -171,7 +169,7 @@ class Detector(object):
         binary_output[(direction >= threshold[0]) & (direction <= threshold[1])] = 1
         return binary_output
 
-    def _fit_lines(self, img, left_start_x, right_start_x, windows=6, margin=20, minpix=10):
+    def _fit_lines(self, img, left_start_x, right_start_x, windows=6, margin=15, minpix=20):
         if self.debug:
             out_img = np.dstack((img, img, img))
 
@@ -224,35 +222,37 @@ class Detector(object):
             if len(right_inds) > minpix:
                 right_x_current = np.int(np.mean(nonzero_x[right_inds]))
 
-        left_lane_inds = np.concatenate(left_lane_inds)
-        right_lane_inds = np.concatenate(right_lane_inds)
-
-        left_x = nonzero_x[left_lane_inds]
-        left_y = nonzero_y[left_lane_inds]
-        left_fit = np.polyfit(left_y, left_x, 2)
-
-        right_x = nonzero_x[right_lane_inds]
-        right_y = nonzero_y[right_lane_inds]
-        right_fit = np.polyfit(right_y, right_x, 2)
-
         y_fit = np.linspace(0, h - 1, h, dtype=np.float32)
+
         left_line = LaneLine()
-        left_line.x_start = left_start_x
-        left_line.fit = left_fit
-        left_line.x_fit = left_fit[0] * y_fit ** 2 + left_fit[1] * y_fit + left_fit[2]
         left_line.y_fit = y_fit
+        left_line.x_start = left_start_x
+        left_lane_inds = np.concatenate(left_lane_inds)
+        if len(left_lane_inds) > 0:
+            left_x = nonzero_x[left_lane_inds]
+            left_y = nonzero_y[left_lane_inds]
+            left_fit = np.polyfit(left_y, left_x, 2)
+            left_line.fit = left_fit
+            left_line.x_fit = left_fit[0] * y_fit ** 2 + left_fit[1] * y_fit + left_fit[2]
+            if self.debug:
+                out_img[left_y, left_x] = [255, 0, 0]
+                plt.plot(left_line.x_fit, left_line.y_fit, color='yellow')
 
         right_line = LaneLine()
-        right_line.x_start = right_start_x
-        right_line.fit = right_fit
-        right_line.x_fit = right_fit[0] * y_fit ** 2 + right_fit[1] * y_fit + right_fit[2]
         right_line.y_fit = y_fit
+        right_line.x_start = right_start_x
+        right_lane_inds = np.concatenate(right_lane_inds)
+        if len(right_lane_inds) > 0:
+            right_x = nonzero_x[right_lane_inds]
+            right_y = nonzero_y[right_lane_inds]
+            right_fit = np.polyfit(right_y, right_x, 2)
+            right_line.fit = right_fit
+            right_line.x_fit = right_fit[0] * y_fit ** 2 + right_fit[1] * y_fit + right_fit[2]
+            if self.debug:
+                out_img[right_y, right_x] = [0, 0, 255]
+                plt.plot(right_line.x_fit, right_line.y_fit, color='yellow')
 
         if self.debug:
-            out_img[left_y, left_x] = [255, 0, 0]
-            out_img[right_y, right_x] = [0, 0, 255]
-            plt.plot(left_line.x_fit, left_line.y_fit, color='yellow')
-            plt.plot(right_line.x_fit, right_line.y_fit, color='yellow')
             plt.imshow(out_img)
             plt.title('Lane lines fit')
             plt.show()
@@ -296,7 +296,7 @@ class Detector(object):
         # display lines info
         cv2.putText(
             img_with_lane,
-            'Curvature R: {}m'.format(np.round((left_line.curvature + right_line.curvature) / 2, 2)),
+            'Curvature Radius: {}m'.format(np.round((left_line.curvature + right_line.curvature) / 2, 2)),
             (10, 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,

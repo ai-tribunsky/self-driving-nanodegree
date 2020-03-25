@@ -11,8 +11,8 @@ class Lane(object):
     left_line = None
     right_line = None
 
-    time_diff = 1.0
-    fit_thresholds = [0.001, 0.4, 150]
+    time_diff = 0.5
+    fit_thresholds = [0.001, 0.1, 50]
     curvature_min = 170
     curvature_max = 1400
 
@@ -26,10 +26,6 @@ class Lane(object):
         self.ym_per_px = 3.048 / 24
 
     def update_lines(self, left_line, right_line):
-        # calculate curvatures and offsets
-        left_line.curvature = self._get_line_curvature_radius(left_line)
-        right_line.curvature = self._get_line_curvature_radius(right_line)
-
         # check lines
         left_line.is_detected = self.is_line_detected(left_line, self.left_lines)
         right_line.is_detected = self.is_line_detected(right_line, self.right_lines)
@@ -37,6 +33,7 @@ class Lane(object):
         # save detections
         current_time = time.time()
         if left_line.is_detected:
+            left_line.curvature = self._get_line_curvature_radius(left_line)
             self.left_line = left_line
             keys = list(self.left_lines.keys())
             keys_len = len(keys)
@@ -48,6 +45,7 @@ class Lane(object):
             self.left_line = None
 
         if right_line.is_detected:
+            right_line.curvature = self._get_line_curvature_radius(right_line)
             self.right_line = right_line
             keys = list(self.right_lines.keys())
             keys_len = len(keys)
@@ -133,7 +131,6 @@ class Lane(object):
         :param line:Line
         :return:float
         """
-
         a, b, c = line.fit
         mx = self.xm_per_px
         my = self.ym_per_px

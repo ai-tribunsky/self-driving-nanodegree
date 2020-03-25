@@ -2,8 +2,8 @@ class LaneLine(object):
     is_detected = False
     x_start = None
 
-    fit = []
-    x_fit = []
-    y_fit = []
+    fit = None
+    x_fit = None
+    y_fit = None
 
     curvature = None

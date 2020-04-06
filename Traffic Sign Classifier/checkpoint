@@ -1,0 +1,2 @@
+model_checkpoint_path: "traffic-sign20200406-231255"
+all_model_checkpoint_paths: "traffic-sign20200406-231255"

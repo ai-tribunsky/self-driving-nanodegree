@@ -109,6 +109,10 @@ After testing simpler approach was taken.
 It seams like in full balanced method count of synthetic data is greater than real data and model performs worse on validation set.
 
 #### Augmentation Examples
+![examples/augmentation_1.png](examples/augmentation_1.png)
+![examples/augmentation_2.png](examples/augmentation_2.png)
+![examples/augmentation_3.png](examples/augmentation_3.png)
+![examples/augmentation_4.png](examples/augmentation_4.png)
 
 #### Dataset after augmentation
 ```text
@@ -157,6 +161,61 @@ Frequencies:
 41  -  353 (0.56%)
 42  -  382 (0.61%)
 ```
+
+#### Model Architecture
+Model architecture based on LeNet
+
+| Layer         		|     Description	        					| 
+|:---------------------:|:---------------------------------------------:| 
+| Input         		| 32x32x3 RGB image   							| 
+| Convolution 1 5x5    	| 1x1 stride, valid padding, outputs 28x28x6 	|
+| ReLU					|												|
+| Max pooling	      	| 2x2 stride,  outputs 14x14x6   				|
+| Convolution 2 5x5    	| 1x1 stride, valid padding, outputs 10x10x16 	|
+| ReLU					|												|
+| Max pooling	      	| 2x2 stride,  outputs 5x5x16   				|
+| Dense Layer 1      	| Input 400 = 5*5 *16, outputs 120				|
+| Dropout   	      	| Rate 0.2, probability 0.8        				|
+| Dense Layer 2	      	| Input 96 = 0.8*120, outputs 84   				|
+| Dropout   	      	| Rate 0.2, probability 0.8        				|
+| Dense Layer 3	      	| Input 67 = 0.8*84, outputs 43    				|
+| Softmax               |                                               |
+
+#### Model Training
+
+To train the model cross entropy was optimized by Adam optimizer with learning rate 0.001, batch size 80 and epochs count equal to 20.
+
+My final model results were:
+* training set accuracy of 0.978
+* validation set accuracy of 0.936 
+* test set accuracy of 0.920
+
+To achieve this results to original LeNet architecture were added dropouts stages after dense layers and epochs count was increased from 10 to 20
+and batch size reduced to 80. Tuning learning rate usually led to worse performance.
+Also data normalization and augmentation increases accuracy from 0.8 to 0.9.
+
+
+### Test a Model on New Images  
+
+For real-world testing [GTSRB_Online-Test-Images.zip](https://sid.erda.dk/public/archives/daaeac0d7ce1152aea9b61d9f1e19370/GTSRB_Online-Test-Images.zip) dataset was downloaded from https://sid.erda.dk/public/archives/daaeac0d7ce1152aea9b61d9f1e19370/published-archive.html and
+simple samples generator was written, which searches 32x32 images from random classes.
+
+![examples/real_world_1.png](examples/real_world_1.png)
+![examples/real_world_2.png](examples/real_world_2.png)
+![examples/real_world_3.png](examples/real_world_3.png)
+
+The first image might be difficult to classify because of poor quality and even human can not tell precisely class of sign.
+
+| Image			                                |     Prediction                                | Probabilities	    	                         | 
+|:---------------------------------------------:|:---------------------------------------------:|:----------------------------------------------:| 
+| 16 - Vehicles over 3.5 metric tons prohibited	| 16 - Vehicles over 3.5 metric tons prohibited | 16 - 1.0, 0 - 0.0, 1 - 0.0, 2 - 0.0, 3 - 0.0   | 
+| 4 - Speed limit (70km/h)                  	| 4 - Speed limit (70km/h)                      | 4 - 1.0, 0 - 0.0, 1 - 0.0, 2 - 0.0, 3 - 0.0    | 
+| 31 - Wild animals crossing                 	| 23 - Slippery road                            | 23 - 1.0, 31 - 0.0, 1 - 0.0, 2 - 0.0, 3 - 0.0  | 
+| 38 - Keep right                           	| 38 - Keep right                               | 38 - 1.0, 0 - 0.0, 1 - 0.0, 2 - 0.0, 3 - 0.0   | 
+| 33 - Turn right ahead                        	| 33 - Turn right ahead                         | 33 - 1.0, 0 - 0.0, 1 - 0.0, 2 - 0.0, 3 - 0.0   | 
+
+  
+  
 
 
 

@@ -1,30 +1,8 @@
 ## Project: Build a Traffic Sign Recognition Program
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-Overview
----
 In this project, you will use what you've learned about deep neural networks and convolutional neural networks to classify traffic signs. You will train and validate a model so it can classify traffic sign images using the [German Traffic Sign Dataset](http://benchmark.ini.rub.de/?section=gtsrb&subsection=dataset). After the model is trained, you will then try out your model on images of German traffic signs that you find on the web.
 
-We have included an Ipython notebook that contains further instructions 
-and starter code. Be sure to download the [Ipython notebook](https://github.com/udacity/CarND-Traffic-Sign-Classifier-Project/blob/master/Traffic_Sign_Classifier.ipynb). 
-
-We also want you to create a detailed writeup of the project. Check out the [writeup template](https://github.com/udacity/CarND-Traffic-Sign-Classifier-Project/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup. The writeup can be either a markdown file or a pdf document.
-
-To meet specifications, the project will require submitting three files: 
-* the Ipython notebook with the code
-* the code exported as an html file
-* a writeup report either as a markdown or pdf file 
-
-Creating a Great Writeup
----
-A great writeup should include the [rubric points](https://review.udacity.com/#!/rubrics/481/view) as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
-
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
-The Project
----
 The goals / steps of this project are the following:
 * Load the data set
 * Explore, summarize and visualize the data set
@@ -33,6 +11,7 @@ The goals / steps of this project are the following:
 * Analyze the softmax probabilities of the new images
 * Summarize the results with a written report
 
+
 ### Dependencies
 This lab requires:
 
@@ -40,19 +19,144 @@ This lab requires:
 
 The lab environment can be created with CarND Term1 Starter Kit. Click [here](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) for the details.
 
-### Dataset and Repository
 
-1. Download the data set. The classroom has a link to the data set in the "Project Instructions" content. This is a pickled dataset in which we've already resized the images to 32x32. It contains a training, validation and test set.
-2. Clone the project, which contains the Ipython notebook and the writeup template.
+### Run
+
+1. Download the [data set](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic-signs-data.zip) and put test.p, train.p, valid.p from archive to ./data directory
+2. Run [Traffic_Sign_Classifier.ipynb](Traffic_Sign_Classifier.ipynb)
 ```sh
-git clone https://github.com/udacity/CarND-Traffic-Sign-Classifier-Project
-cd CarND-Traffic-Sign-Classifier-Project
 jupyter notebook Traffic_Sign_Classifier.ipynb
 ```
+3. Example of executed notebook can be found at [Traffic_Sign_Classifier.html](Traffic_Sign_Classifier.html) 
 
-### Requirements for Submission
-Follow the instructions in the `Traffic_Sign_Classifier.ipynb` notebook and write the project report using the writeup template as a guide, `writeup_template.md`. Submit the project code and writeup document.
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+### Data Set Summary & Exploration
+
+Datasets for train, validation and validation can be found at https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic-signs-data.zip
+
+#### Datasets statistics
+```text
+Number of training examples   = 34 799 (67.12899554389553%)
+Number of validation examples = 4410 (8.507108547618587%)
+Number of testing examples    = 12 630 (24.36389590848589%)
+Image data shape              = (32, 32, 3)
+Number of classes             = 43
+```
+
+Training dataset contains traffic signs from variety of distances, lightning conditions and it is very disbalanced. 
+
+Class frequencies (count of samples per class):
+```text
+0   -  180 (0.52%)
+1   -  1980 (5.69%)
+2   -  2010 (5.78%)
+3   -  1260 (3.62%)
+4   -  1770 (5.09%)
+5   -  1650 (4.74%)
+6   -  360 (1.03%)
+7   -  1290 (3.71%)
+8   -  1260 (3.62%)
+9   -  1320 (3.79%)
+10  -  1800 (5.17%)
+11  -  1170 (3.36%)
+12  -  1890 (5.43%)
+13  -  1920 (5.52%)
+14  -  690 (1.98%)
+15  -  540 (1.55%)
+16  -  360 (1.03%)
+17  -  990 (2.84%)
+18  -  1080 (3.1%)
+19  -  180 (0.52%)
+20  -  300 (0.86%)
+21  -  270 (0.78%)
+22  -  330 (0.95%)
+23  -  450 (1.29%)
+24  -  240 (0.69%)
+25  -  1350 (3.88%)
+26  -  540 (1.55%)
+27  -  210 (0.6%)
+28  -  480 (1.38%)
+29  -  240 (0.69%)
+30  -  390 (1.12%)
+31  -  690 (1.98%)
+32  -  210 (0.6%)
+33  -  599 (1.72%)
+34  -  360 (1.03%)
+35  -  1080 (3.1%)
+36  -  330 (0.95%)
+37  -  180 (0.52%)
+38  -  1860 (5.34%)
+39  -  270 (0.78%)
+40  -  300 (0.86%)
+41  -  210 (0.6%)
+42  -  210 (0.6%)
+```
+
+Classes Examples (class ID displayed under image):
+![examples/classes_examples.png](examples/classes_examples.png)
+
+
+### Design and Test a Model Architecture
+
+Since training data is highly disbalanced some augmented data was generated by [ImageDataGenerator](https://keras.io/preprocessing/image/) and appended to training dataset. 
+Augmentation performed by randomly sampling data from source images with rotation, shear, zoom transformations. 
+
+There are two methods of augmentation were tested: 
+* "full balance method" - algorithm tries to add images for each class to retrieve equally distributed samples
+*  simpler approach - generates some percent of train images count of random samples and random classes
+
+After testing simpler approach was taken. 
+It seams like in full balanced method count of synthetic data is greater than real data and model performs worse on validation set.
+
+#### Augmentation Examples
+
+#### Dataset after augmentation
+```text
+Frequencies:
+0   -  345 (0.55%)
+1   -  3538 (5.65%)
+2   -  3571 (5.7%)
+3   -  2255 (3.6%)
+4   -  3206 (5.12%)
+5   -  3002 (4.79%)
+6   -  640 (1.02%)
+7   -  2346 (3.75%)
+8   -  2268 (3.62%)
+9   -  2399 (3.83%)
+10  -  3311 (5.29%)
+11  -  2152 (3.44%)
+12  -  3439 (5.49%)
+13  -  3436 (5.49%)
+14  -  1224 (1.95%)
+15  -  989 (1.58%)
+16  -  658 (1.05%)
+17  -  1729 (2.76%)
+18  -  1929 (3.08%)
+19  -  341 (0.54%)
+20  -  534 (0.85%)
+21  -  486 (0.78%)
+22  -  563 (0.9%)
+23  -  827 (1.32%)
+24  -  455 (0.73%)
+25  -  2406 (3.84%)
+26  -  930 (1.48%)
+27  -  385 (0.61%)
+28  -  861 (1.37%)
+29  -  423 (0.68%)
+30  -  702 (1.12%)
+31  -  1243 (1.98%)
+32  -  375 (0.6%)
+33  -  1085 (1.73%)
+34  -  644 (1.03%)
+35  -  1918 (3.06%)
+36  -  611 (0.98%)
+37  -  308 (0.49%)
+38  -  3343 (5.34%)
+39  -  508 (0.81%)
+40  -  518 (0.83%)
+41  -  353 (0.56%)
+42  -  382 (0.61%)
+```
+
+
 

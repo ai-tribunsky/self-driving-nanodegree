@@ -1,0 +1,28 @@
+name: carnd-term1
+channels:
+    - https://conda.anaconda.org/menpo
+    - conda-forge
+dependencies:
+    - python==3.7.7
+    - pip
+    - numpy
+    - matplotlib
+    - jupyter
+    - pillow
+    - scikit-learn
+    - scikit-image
+    - scipy
+    - h5py
+    - eventlet
+    - flask-socketio
+    - seaborn
+    - pandas
+    - ffmpeg
+    - imageio
+    - pyqt
+    - pip:
+        - moviepy
+        - opencv-python
+        - requests
+        - https://files.pythonhosted.org/packages/92/42/7bddc0d5bc169596fbd13b6e1b844f832491ab671381e483da3bf5292ca9/tensorflow_gpu-1.15.2-cp37-cp37m-manylinux2010_x86_64.whl
+        - keras

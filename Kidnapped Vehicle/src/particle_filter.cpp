@@ -1,3 +1,13 @@
+/**
+ * particle_filter.cpp
+ *
+ * Created on: Dec 12, 2016
+ * Author: Tiffany Huang
+ *
+ * Updated on: May 16, 2020
+ * Author: Anatoly Tribunsky
+ */
+
 #include "particle_filter.h"
 
 #include <cmath>
@@ -12,11 +22,10 @@
 using std::string;
 using std::vector;
 
-ParticleFilter::ParticleFilter(unsigned int num_particles) : _num_particles(num_particles), _is_initialized(false) {}
-
 void ParticleFilter::init(double x, double y, double theta, const double std[]) {
-    _particles.reserve(_num_particles);
-    _weights.reserve(_num_particles);
+    num_particles = 1000;
+    particles.reserve(num_particles);
+    weights.reserve(num_particles);
 
     std::default_random_engine generator(std::random_device{}());
     std::normal_distribution<double> x_distribution(x, std[0]);
@@ -24,7 +33,7 @@ void ParticleFilter::init(double x, double y, double theta, const double std[]) 
     std::normal_distribution<double> theta_distribution(theta, std[2]);
 
     const double weight = 1.0;
-    for (unsigned int i = 0; i < _num_particles; i++) {
+    for (unsigned int i = 0; i < num_particles; i++) {
         Particle particle{
                 i,
                 x_distribution(generator),
@@ -32,14 +41,14 @@ void ParticleFilter::init(double x, double y, double theta, const double std[]) 
                 theta_distribution(generator),
                 weight
         };
-        _particles.push_back(particle);
-        _weights.push_back(weight);
+        particles.push_back(particle);
+        weights.push_back(weight);
     }
 
-    _is_initialized = true;
+    is_initialized = true;
 }
 
-void ParticleFilter::prediction(double delta_t, const double std_pos[], double velocity, double yaw_rate) {
+void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
     std::random_device rd;
     std::default_random_engine generator(rd());
     std::normal_distribution<double> x_distribution(0.0, std_pos[0]);
@@ -47,7 +56,7 @@ void ParticleFilter::prediction(double delta_t, const double std_pos[], double v
     std::normal_distribution<double> theta_distribution(0.0, std_pos[2]);
 
     double velocity_rate, x, y, theta;
-    for (auto &particle: _particles) {
+    for (auto &particle: particles) {
         if (fabs(yaw_rate) > 0.00001) {
             velocity_rate = (velocity / yaw_rate);
             x = particle.x + velocity_rate * (std::sin(particle.theta + yaw_rate * delta_t) - std::sin(particle.theta));
@@ -72,7 +81,7 @@ void ParticleFilter::updateWeights(double sensor_range, const double std_landmar
     const int landmarks_count = map_landmarks.landmark_list.size();
 
     double weight_sum{0.0};
-    for (auto &particle: _particles) {
+    for (auto &particle: particles) {
         vector<int> associations;
         vector<double> sense_x;
         vector<double> sense_y;
@@ -122,13 +131,13 @@ void ParticleFilter::updateWeights(double sensor_range, const double std_landmar
     }
 
     // normalize particles weights
-    for (unsigned int i = 0; i < _num_particles; i++) {
+    for (unsigned int i = 0; i < num_particles; i++) {
         if (weight_sum > 0.000001) {
-            _particles[i].weight /= weight_sum;
-            _weights[i] = _particles[i].weight;
+            particles[i].weight /= weight_sum;
+            weights[i] = particles[i].weight;
         } else {
-            _particles[i].weight = 1.0;
-            _weights[i] = 1.0;
+            particles[i].weight = 1.0;
+            weights[i] = 1.0;
         }
     }
 }
@@ -136,24 +145,23 @@ void ParticleFilter::updateWeights(double sensor_range, const double std_landmar
 void ParticleFilter::resample() {
     std::random_device rd;
     std::default_random_engine generator(rd());
-    std::discrete_distribution<> d(_weights.begin(), _weights.end());
+    std::discrete_distribution<> d(weights.begin(), weights.end());
 
     vector<Particle> sample;
-    sample.reserve(_num_particles);
+    sample.reserve(num_particles);
 
-    for (unsigned int i = 0; i < _num_particles; i++) {
+    for (unsigned int i = 0; i < num_particles; i++) {
         int particle_idx = d(generator);
-        sample.push_back(_particles[particle_idx]);
+        sample.push_back(particles[particle_idx]);
     }
 
-    _particles.clear();
-    _particles = sample;
+    particles.clear();
+    particles = sample;
 }
 
-void ParticleFilter::SetAssociations(Particle &particle,
-                                     const vector<int> &associations,
-                                     const vector<double> &sense_x,
-                                     const vector<double> &sense_y) const {
+void ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations,
+                                     const std::vector<double>& sense_x,
+                                     const std::vector<double>& sense_y) {
     // particle: the particle to which assign each listed association,
     //   and association's (x,y) world coordinates mapping
     // associations: The landmark id that goes along with each listed association
@@ -164,7 +172,7 @@ void ParticleFilter::SetAssociations(Particle &particle,
     particle.sense_y = sense_y;
 }
 
-string ParticleFilter::getAssociations(const Particle &best) const {
+string ParticleFilter::getAssociations(Particle best) {
     vector<int> v = best.associations;
     std::stringstream ss;
     copy(v.begin(), v.end(), std::ostream_iterator<int>(ss, " "));
@@ -173,7 +181,7 @@ string ParticleFilter::getAssociations(const Particle &best) const {
     return s;
 }
 
-string ParticleFilter::getSenseCoord(const Particle &best, const string &coord) const {
+string ParticleFilter::getSenseCoord(Particle best, string coord) {
     vector<double> v;
 
     if (coord == "X") {

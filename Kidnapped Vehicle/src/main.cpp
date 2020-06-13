@@ -1,3 +1,13 @@
+/**
+ * particle_filter.cpp
+ *
+ * Created on: Dec 12, 2016
+ * Author: Tiffany Huang
+ *
+ * Updated on: May 16, 2020
+ * Author: Anatoly Tribunsky
+ */
+
 #include <cmath>
 #include <uWS/uWS.h>
 #include <iostream>
@@ -45,8 +55,7 @@ int main() {
     const double sigma_landmark[]{0.3, 0.3};
 
     // Create particle filter
-    const int num_particles{10};
-    ParticleFilter pf{num_particles};
+    ParticleFilter pf;
 
     uWS::Hub h;
     h.onMessage([&pf, &map, &delta_t, &sensor_range, &sigma_pos, &sigma_landmark]
@@ -114,7 +123,7 @@ int main() {
 
                     // Calculate and output the average weighted error of the particle
                     //   filter over all time steps so far.
-                    vector<Particle> particles = pf._particles;
+                    vector<Particle> particles = pf.particles;
                     int num_particles = particles.size();
                     double highest_weight = -1.0;
                     Particle best_particle;

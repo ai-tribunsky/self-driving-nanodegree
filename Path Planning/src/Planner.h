@@ -74,6 +74,9 @@ private:
     // allowed transitions from every state
     static const vector<BEHAVIOR_STATE> transitions[6];
     BEHAVIOR_STATE current_state;
+
+    // world state
+    vector<vector<double>> previous_cars_states;
 };
 
 

@@ -25,7 +25,7 @@ Trajectory Planner::getTrajectory(
         const Map &map,
         const vector<vector<double>> &cars
 ) {
-    // get available states
+    // get available states from current state
 
     // translate prev trajectory coords to Frenet
 
@@ -36,7 +36,7 @@ Trajectory Planner::getTrajectory(
     //  - obeys rules (max velocity)
     //  - obeys comfort rules (max acceleration, max jerk)
     //  - collision free
-    //  -
+    //  - effective (maximize velocity)
 
     // choose min cost trajectory
 

@@ -3,10 +3,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "Eigen-3.3/Eigen/Core"
-#include "Eigen-3.3/Eigen/QR"
-#include "helpers.h"
+#include <unordered_map>
+
+//#include "Eigen-3.3/Eigen/Core"
+//#include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "helpers.h"
 #include "Planner.h"
 
 
@@ -14,6 +16,7 @@
 using nlohmann::json;
 using std::string;
 using std::vector;
+using std::unordered_map;
 
 int main() {
     // Load up map values for waypoint's x,y,s and d normalized normal vectors
@@ -50,10 +53,16 @@ int main() {
         map.waypoints_dy.push_back(d_y);
     }
 
-    Planner *planner = new Planner(22.352, 10.0, 30.0, 0.02);
+    Planner planner(
+            1.0, // planner horizon in seconds
+            22.2, // max velocity
+            10.0, // max acceleration
+            30.0,  // max jerk
+            0.02 // simulator timestep
+    );
 
     uWS::Hub h;
-    h.onMessage([&map, planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+    h.onMessage([&map, &planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
@@ -70,22 +79,27 @@ int main() {
                     double car_y = j[1]["y"];
                     double car_s = j[1]["s"];
                     double car_d = j[1]["d"];
-                    double car_yaw = j[1]["yaw"];
+                    double car_yaw = deg2rad(j[1]["yaw"]);
                     double car_speed = j[1]["speed"];
 
                     // Previous path data given to the Planner
                     auto previous_path_x = j[1]["previous_path_x"];
                     auto previous_path_y = j[1]["previous_path_y"];
                     // Previous path's end s and d values
-                    double end_path_s = j[1]["end_path_s"];
-                    double end_path_d = j[1]["end_path_d"];
+//                    double end_path_s = j[1]["end_path_s"];
+//                    double end_path_d = j[1]["end_path_d"];
 
                     // Sensor Fusion Data, a list of all other cars on the same side of the road.
                     auto sensor_fusion = j[1]["sensor_fusion"];
+                    unordered_map<int, vector<vector<double>>> cars_in_lanes;
+                    for (const auto& car: sensor_fusion) {
+                        int lane = getLane(car[6], map.lane_width);
+                        cars_in_lanes[lane].push_back(car);
+                    }
 
                     EgoState ego_state{car_x, car_y, car_s, car_d, car_yaw, car_speed, getLane(car_d, map.lane_width)};
                     Trajectory prev_trajectory{previous_path_x, previous_path_y};
-                    Trajectory trajectory = planner->getTrajectory(prev_trajectory, ego_state, map, sensor_fusion);
+                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego_state, map, cars_in_lanes);
 
                     json msgJson;
                     msgJson["next_x"] = trajectory.x;

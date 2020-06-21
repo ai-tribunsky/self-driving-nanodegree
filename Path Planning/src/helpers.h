@@ -4,16 +4,17 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include "spline.h"
+#include <utility>
 
 // for convenience
 using std::string;
 using std::vector;
+using std::pair;
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 //   else the empty string "" will be returned.
-string hasData(const string &s) {
+inline string hasData(const string &s) {
     auto found_null = s.find("null");
     auto b1 = s.find_first_of('[');
     auto b2 = s.find_first_of('}');
@@ -33,20 +34,18 @@ string hasData(const string &s) {
 //
 
 // For converting back and forth between radians and degrees.
-constexpr double pi() { return M_PI; }
+inline double deg2rad(double x) { return x * M_PI / 180.0; }
 
-double deg2rad(double x) { return x * pi() / 180.0; }
-
-double rad2deg(double x) { return x * 180.0 / pi(); }
+inline double rad2deg(double x) { return x * 180.0 / M_PI; }
 
 // Calculate distance between two points
-double distance(double x1, double y1, double x2, double y2) {
+inline double distance(double x1, double y1, double x2, double y2) {
     return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
 
 // Calculate closest waypoint to current x, y position
-size_t ClosestWaypoint(double x, double y, const vector<double> &maps_x,
-                    const vector<double> &maps_y) {
+inline size_t ClosestWaypoint(double x, double y, const vector<double> &maps_x,
+                              const vector<double> &maps_y) {
     double closestLen{100000}; //large number
     size_t closestWaypoint{0};
 
@@ -64,8 +63,8 @@ size_t ClosestWaypoint(double x, double y, const vector<double> &maps_x,
 }
 
 // Returns next waypoint of the closest waypoint
-size_t NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
-                 const vector<double> &maps_y) {
+inline size_t NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
+                           const vector<double> &maps_y) {
     size_t closestWaypoint = ClosestWaypoint(x, y, maps_x, maps_y);
 
     double map_x = maps_x[closestWaypoint];
@@ -74,9 +73,9 @@ size_t NextWaypoint(double x, double y, double theta, const vector<double> &maps
     double heading = atan2((map_y - y), (map_x - x));
 
     double angle = fabs(theta - heading);
-    angle = std::min(2 * pi() - angle, angle);
+    angle = std::min(2 * M_PI - angle, angle);
 
-    if (angle > pi() / 2) {
+    if (angle > M_PI / 2) {
         ++closestWaypoint;
         if (closestWaypoint == maps_x.size()) {
             closestWaypoint = 0;
@@ -87,9 +86,9 @@ size_t NextWaypoint(double x, double y, double theta, const vector<double> &maps
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta,
-                         const vector<double> &maps_x,
-                         const vector<double> &maps_y) {
+inline pair<double, double> getFrenet(double x, double y, double theta,
+                                      const vector<double> &maps_x,
+                                      const vector<double> &maps_y) {
     int next_wp = NextWaypoint(x, y, theta, maps_x, maps_y);
 
     size_t prev_wp;
@@ -132,9 +131,9 @@ vector<double> getFrenet(double x, double y, double theta,
 }
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double> getXY(double s, double d, const vector<double> &maps_s,
-                     const vector<double> &maps_x,
-                     const vector<double> &maps_y) {
+inline pair<double, double> getXY(double s, double d, const vector<double> &maps_s,
+                                  const vector<double> &maps_x,
+                                  const vector<double> &maps_y) {
     int prev_wp = -1;
     while (s > maps_s[prev_wp + 1] && (prev_wp < (int) (maps_s.size() - 1))) {
         ++prev_wp;
@@ -150,7 +149,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
     double seg_x = maps_x[prev_wp] + seg_s * cos(heading);
     double seg_y = maps_y[prev_wp] + seg_s * sin(heading);
 
-    double perp_heading = heading - pi() / 2;
+    double perp_heading = heading - M_PI_2;
 
     double x = seg_x + d * cos(perp_heading);
     double y = seg_y + d * sin(perp_heading);
@@ -160,7 +159,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
 
 // lane indexing starts from a middle of the road
 // from left to right
-int getLane(double d, double lane_width) {
+inline int getLane(double d, double lane_width) {
     return (int) (d / lane_width);
 }
 

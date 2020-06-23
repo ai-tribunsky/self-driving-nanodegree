@@ -101,9 +101,9 @@ private:
                                  double ref_y
     ) const;
 
-    vector<Trajectory> get_cars_trajectories(const vector<vector<double>> &cars, const Map &map, int steps_count);
+    vector<Trajectory> get_cars_trajectories(const vector<vector<double>> &cars, const Map &map, int steps_count) const;
 
-    unordered_map<int, double> Planner::get_lanes_velocities(const EgoState &state, const Map& map, const vector<vector<double>> &cars);
+    unordered_map<int, double> Planner::get_lanes_velocities(const EgoState &state, const Map& map, const vector<vector<double>> &cars) const;
 
 private:
     // constraints

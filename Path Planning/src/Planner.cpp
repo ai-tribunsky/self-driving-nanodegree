@@ -108,7 +108,8 @@ Trajectory Planner::keep_lane(const Trajectory &prev_trajectory,
 
     int target_lane = ego_state.lane;
     double target_d = target_lane * map.lane_width + 0.5 * map.lane_width;
-    double target_velocity = max_velocity;
+    unordered_map<int, double> lanes_velocities = get_lanes_velocities(ego_state, map, cars);
+    double target_velocity = std::min(max_velocity, lanes_velocities[ego_state.lane]);
 
     // create additional anchors points for spline
     double s_start = ego_state.s;
@@ -188,7 +189,8 @@ Trajectory Planner::change_lane_right(const Trajectory &prev_trajectory,
     return prev_trajectory;
 }
 
-vector<Trajectory> Planner::get_cars_trajectories(const vector<vector<double>> &cars, const Map &map, int steps_count) {
+vector<Trajectory>
+Planner::get_cars_trajectories(const vector<vector<double>> &cars, const Map &map, int steps_count) const {
     size_t cars_count = cars.size();
     if (cars_count == 0) {
         return {};
@@ -229,7 +231,7 @@ vector<Trajectory> Planner::get_cars_trajectories(const vector<vector<double>> &
 }
 
 unordered_map<int, double>
-Planner::get_lanes_velocities(const EgoState &state, const Map &map, const vector<vector<double>> &cars) {
+Planner::get_lanes_velocities(const EgoState &state, const Map &map, const vector<vector<double>> &cars) const {
     unordered_map<int, double> lanes_velocities;
     for (int i = 0; i < map.lanes_count; i++) {
         lanes_velocities[i] = 0.0;
@@ -239,7 +241,6 @@ Planner::get_lanes_velocities(const EgoState &state, const Map &map, const vecto
         // [ id, x, y, vx, vy, s, d]
         double vx = car[3];
         double vy = car[4];
-        double s = car[5];
         double d = car[6];
 
         int lane = getLane(d, map.lane_width);

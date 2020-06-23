@@ -3,7 +3,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <unordered_map>
 
 //#include "Eigen-3.3/Eigen/Core"
 //#include "Eigen-3.3/Eigen/QR"
@@ -16,7 +15,6 @@
 using nlohmann::json;
 using std::string;
 using std::vector;
-using std::unordered_map;
 
 int main() {
     // Load up map values for waypoint's x,y,s and d normalized normal vectors
@@ -91,15 +89,10 @@ int main() {
 
                     // Sensor Fusion Data, a list of all other cars on the same side of the road.
                     auto sensor_fusion = j[1]["sensor_fusion"];
-                    unordered_map<int, vector<vector<double>>> cars_in_lanes;
-                    for (const auto& car: sensor_fusion) {
-                        int lane = getLane(car[6], map.lane_width);
-                        cars_in_lanes[lane].push_back(car);
-                    }
 
                     EgoState ego_state{car_x, car_y, car_s, car_d, car_yaw, car_speed, getLane(car_d, map.lane_width)};
                     Trajectory prev_trajectory{previous_path_x, previous_path_y};
-                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego_state, map, cars_in_lanes);
+                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego_state, map, sensor_fusion);
 
                     json msgJson;
                     msgJson["next_x"] = trajectory.x;

@@ -49,7 +49,7 @@ public:
             const Trajectory &prev_trajectory,
             const EgoState &ego_state,
             const Map &map,
-            const unordered_map<int, vector<vector<double>>> &cars
+            const vector<vector<double>> &cars
     );
 
 private:
@@ -101,6 +101,9 @@ private:
                                  double ref_y
     ) const;
 
+    vector<Trajectory> get_cars_trajectories(const vector<vector<double>> &cars, const Map &map, int steps_count);
+
+    unordered_map<int, double> Planner::get_lanes_velocities(const EgoState &state, const Map& map, const vector<vector<double>> &cars);
 
 private:
     // constraints
@@ -109,7 +112,6 @@ private:
     double max_jerk;         // m/s^3
 
     double planner_time_horizon;
-    int max_trajectory_points_count;
 
     // simulator options
     double time_step; // simulator rate in seconds
@@ -119,7 +121,7 @@ private:
     BEHAVIOR_STATE current_state;
 
     // world state
-    unordered_map<int, vector<vector<double>>> previous_cars_states;
+    vector<vector<double>> previous_cars_states;
 };
 
 struct Map {
@@ -152,6 +154,7 @@ struct Trajectory {
 
     BEHAVIOR_STATE state;
     double cost;
+    float probability;
 
     void print() const {
         std::cout << "------------------\n";

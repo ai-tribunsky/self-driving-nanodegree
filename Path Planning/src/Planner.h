@@ -43,7 +43,7 @@ public:
             time_step(sim_time_step),
             current_state(STOP),
             ref_velocity(0.0) {
-        max_velocity_delta = max_a * sim_time_step;
+        max_velocity_delta = max_a * sim_time_step * 0.97;
         trajectory_points_count = (int) ceil(planner_horizon / sim_time_step);
     }
 
@@ -65,6 +65,8 @@ private:
                          double ref_y,
                          double ref_yaw
     );
+
+    double get_trajectory_cost(const Trajectory &trajectory, const Map &map) const;
 
 private:
     // constraints

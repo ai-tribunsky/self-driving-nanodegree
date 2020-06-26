@@ -28,22 +28,32 @@ Trajectory Planner::getTrajectory(
     vector<double> tj_start_points_x;
     vector<double> tj_start_points_y;
     size_t prev_tj_points_count = prev_trajectory.x.size();
-    double ref_x = ego_state.x;
-    double ref_y = ego_state.y;
-    double ref_yaw = ego_state.yaw;
+    double prev_ref_x, prev_ref_y;
+    double ref_x, ref_y;
+    double ref_yaw;
     if (prev_tj_points_count > 0) {
         ref_x = prev_trajectory.x[prev_tj_points_count - 1];
         ref_y = prev_trajectory.y[prev_tj_points_count - 1];
 
         if (prev_tj_points_count > 1) {
-            double prev_ref_x = prev_trajectory.x[prev_tj_points_count - 2];
-            double prev_ref_y = prev_trajectory.y[prev_tj_points_count - 2];
+            prev_ref_x = prev_trajectory.x[prev_tj_points_count - 2];
+            prev_ref_y = prev_trajectory.y[prev_tj_points_count - 2];
             ref_yaw = atan2(ref_y - prev_ref_y, ref_x - prev_ref_x);
-
-            tj_start_points_x.push_back(prev_ref_x);
-            tj_start_points_y.push_back(prev_ref_y);
+        } else {
+            prev_ref_x = ego_state.x;
+            prev_ref_y = ego_state.y;
+            ref_yaw = ego_state.yaw;
         }
+    } else {
+        ref_x = ego_state.x;
+        ref_y = ego_state.y;
+        ref_yaw = ego_state.yaw;
+
+        prev_ref_x = ref_x - cos(ref_yaw);
+        prev_ref_y = ref_y - sin(ref_yaw);
     }
+    tj_start_points_x.push_back(prev_ref_x);
+    tj_start_points_y.push_back(prev_ref_y);
     tj_start_points_x.push_back(ref_x);
     tj_start_points_y.push_back(ref_y);
 
@@ -58,16 +68,19 @@ Trajectory Planner::getTrajectory(
         //  - obeys comfort rules (max acceleration, max jerk)
         //  - collision free
         //  - effective (maximize velocity)
-        Trajectory possible_trajectory;
-        possible_trajectory.cost = 1000.0;
+//        Trajectory possible_trajectory;
         switch (next_state) {
 //            case STOP:
 //                possible_trajectory = stop(prev_trajectory, ego_state, map, cars, ref_x, ref_y);
 //                break;
 
             case KEEP_LANE:
-                possible_trajectory = keep_lane(prev_trajectory, ego_state, map, cars, tj_start_points_x,
-                                                tj_start_points_y, ref_x, ref_y, ref_yaw);
+                Trajectory possible_trajectory = keep_lane(prev_trajectory, ego_state, map, cars, tj_start_points_x,
+                                                           tj_start_points_y, ref_x, ref_y, ref_yaw);
+                possible_trajectory.cost = get_trajectory_cost(possible_trajectory, map);
+
+                possible_trajectory.print();
+                next_trajectories.push_back(possible_trajectory);
                 break;
 
 //            case PREPARE_CHANGE_LANE_LEFT:
@@ -87,7 +100,7 @@ Trajectory Planner::getTrajectory(
 //                break;
         }
 
-        next_trajectories.push_back(possible_trajectory);
+
     }
 
     // choose min cost trajectory
@@ -148,9 +161,9 @@ Trajectory Planner::keep_lane(const Trajectory &prev_trajectory,
     double y = ref_y;
     for (size_t i = 1; i <= points_to_generate; i++) {
         if (ref_velocity + max_velocity_delta <= lane_velocity) {
-            ref_velocity += max_velocity_delta * 0.5;
+            ref_velocity += max_velocity_delta;
         } else if (ref_velocity > lane_velocity) {
-            ref_velocity -= max_velocity_delta * 0.5;
+            ref_velocity -= max_velocity_delta;
         } else {
             ref_velocity = lane_velocity;
         }
@@ -166,7 +179,61 @@ Trajectory Planner::keep_lane(const Trajectory &prev_trajectory,
         possible_trajectory.y.push_back(y);
     }
 
-    possible_trajectory.print();
-
     return possible_trajectory;
+}
+
+double Planner::get_trajectory_cost(const Trajectory &trajectory, const Map &map) const {
+    double cost{0.0};
+
+    // evaluate trajectory efficiency
+    double tj_max_velocity{0.0};
+    double tj_max_acceleration{0.0};
+    double tj_max_jerk{0.0};
+
+    size_t waypoints_count = trajectory.x.size() - 1;
+    double prev_velocity, velocity;
+    double prev_acceleration, acceleration, jerk;
+    double waypoints_distance;
+    double t{0.0};
+    for (size_t i = 0; i < waypoints_count; i += 2) {
+        waypoints_distance = distance(trajectory.x[i], trajectory.y[i], trajectory.x[i + 1], trajectory.y[i + 1]);
+        velocity = waypoints_distance / time_step;
+        if (velocity > tj_max_velocity) {
+            tj_max_velocity = velocity;
+        }
+        if (t > 0.0) {
+            acceleration = std::abs(velocity - prev_velocity) / time_step;
+            if (acceleration > tj_max_acceleration) {
+                tj_max_acceleration = acceleration;
+            }
+
+            if (t > time_step) {
+                jerk = std::abs(acceleration - prev_acceleration) / time_step;
+                if (jerk > tj_max_jerk) {
+                    tj_max_jerk = jerk;
+                }
+            }
+
+            prev_acceleration = acceleration;
+        }
+
+        prev_velocity = velocity;
+        t += time_step;
+    }
+
+    // penalize velocity overshoot more than undershoot
+    double x = std::abs((tj_max_velocity - map.max_velocity) / map.max_velocity);
+    cost += x * (x > 1 ? 2.0 : 1.0);
+    // penalize acceleration overshoot only
+    x = (tj_max_acceleration - max_acceleration) / max_acceleration;
+    if (x > 1.0) {
+        cost += x;
+    }
+    // penalize jerk overshoot only
+    x = (tj_max_jerk - max_jerk) / max_jerk;
+    if (x > 1.0) {
+        cost += x;
+    }
+
+    return cost;
 }

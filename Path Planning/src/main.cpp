@@ -78,7 +78,7 @@ int main() {
                     double car_s = j[1]["s"];
                     double car_d = j[1]["d"];
                     double car_yaw = deg2rad(j[1]["yaw"]);
-                    double car_speed = j[1]["speed"];
+                    double car_speed = (double)j[1]["speed"] * 0.44704; // to convert mph to m/s
                     EgoState ego_state{car_x, car_y, car_s, car_d, car_yaw, car_speed, getLane(car_d, map.lane_width)};
 
                     // Previous path data given to the Planner

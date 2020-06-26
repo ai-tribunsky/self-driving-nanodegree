@@ -22,6 +22,7 @@ using std::unordered_map;
 struct Map;
 struct EgoState;
 struct Trajectory;
+struct Car;
 
 enum BEHAVIOR_STATE {
     STOP,
@@ -35,83 +36,43 @@ enum BEHAVIOR_STATE {
 
 class Planner {
 public:
-    Planner(double planner_horizon, double max_v, double max_a, double max_j, double sim_time_step) :
-            max_velocity(max_v),
+    Planner(double planner_horizon, double max_a, double max_j, double sim_time_step) :
+            time_horizon(planner_horizon),
             max_acceleration(max_a),
             max_jerk(max_j),
             time_step(sim_time_step),
             current_state(STOP),
-            planner_time_horizon(planner_horizon) {
-        max_trajectory_points_count = int(planner_horizon / time_step);
+            ref_velocity(0.0) {
+        max_velocity_delta = max_a * sim_time_step;
+        trajectory_points_count = (int) ceil(planner_horizon / sim_time_step);
     }
 
     Trajectory getTrajectory(
             const Trajectory &prev_trajectory,
             const EgoState &ego_state,
             const Map &map,
-            const vector<vector<double>> &cars
+            const vector<Car> &cars
     );
 
 private:
-    Trajectory stop(const Trajectory &prev_trajectory,
-                    const EgoState &ego_state,
-                    const Map &map,
-                    const vector<vector<double>> &cars,
-                    double ref_x,
-                    double ref_y
-    ) const;
-
     Trajectory keep_lane(const Trajectory &prev_trajectory,
                          const EgoState &ego_state,
                          const Map &map,
-                         const vector<vector<double>> &cars,
+                         const vector<Car> &cars,
+                         const vector<double> &tj_start_points_x,
+                         const vector<double> &tj_start_points_y,
                          double ref_x,
-                         double ref_y
-    ) const;
-
-    Trajectory prepare_change_lane_left(const Trajectory &prev_trajectory,
-                                        const EgoState &ego_state,
-                                        const Map &map,
-                                        const vector<vector<double>> &cars,
-                                        double ref_x,
-                                        double ref_y
-    ) const;
-
-    Trajectory prepare_change_lane_right(const Trajectory &prev_trajectory,
-                                         const EgoState &ego_state,
-                                         const Map &map,
-                                         const vector<vector<double>> &cars,
-                                         double ref_x,
-                                         double ref_y
-    ) const;
-
-    Trajectory change_lane_left(const Trajectory &prev_trajectory,
-                                const EgoState &ego_state,
-                                const Map &map,
-                                const vector<vector<double>> &cars,
-                                double ref_x,
-                                double ref_y
-    ) const;
-
-    Trajectory change_lane_right(const Trajectory &prev_trajectory,
-                                 const EgoState &ego_state,
-                                 const Map &map,
-                                 const vector<vector<double>> &cars,
-                                 double ref_x,
-                                 double ref_y
-    ) const;
-
-    vector<Trajectory> get_cars_trajectories(const vector<vector<double>> &cars, const Map &map, int steps_count) const;
-
-    unordered_map<int, double> Planner::get_lanes_velocities(const EgoState &state, const Map& map, const vector<vector<double>> &cars) const;
+                         double ref_y,
+                         double ref_yaw
+    );
 
 private:
     // constraints
-    double max_velocity;     // m/s
-    double max_acceleration; // m/s^2
-    double max_jerk;         // m/s^3
-
-    double planner_time_horizon;
+    double max_velocity_delta; // m/s
+    double max_acceleration;   // m/s^2
+    double max_jerk;           // m/s^3
+    double time_horizon;
+    int trajectory_points_count;
 
     // simulator options
     double time_step; // simulator rate in seconds
@@ -119,9 +80,60 @@ private:
     // allowed transitions from every state
     static const vector<BEHAVIOR_STATE> transitions[6];
     BEHAVIOR_STATE current_state;
+    double ref_velocity;
 
-    // world state
-    vector<vector<double>> previous_cars_states;
+};
+
+struct Car {
+    double x;
+    double y;
+    double s;
+    double d;
+    double vx;
+    double vy;
+    double v;
+    double distance;
+    int lane;
+
+    bool operator<(const Car &str) const {
+        if (lane == str.lane) {
+            if (distance == str.distance) {
+                return (v < str.v);
+            }
+
+            return distance < str.distance;
+        }
+
+        return (lane < str.lane);
+    }
+
+    void print() const {
+        std::cout << "==== CAR ====";
+        std::cout << "\n  x = " << x << "; y = " << y;
+        std::cout << "\n  s = " << s << "; d = " << d;
+        std::cout << "\n  vx = " << vx << "; vy = " << vy << "; v = " << v;
+        std::cout << "\n  lane = " << lane;
+        std::cout << "\n  distance = " << distance << '\n';
+    }
+};
+
+struct EgoState {
+    double x;
+    double y;
+    double s;
+    double d;
+    double yaw;
+    double velocity;
+    int lane;
+
+    void print() const {
+        std::cout << "==== EGO ====";
+        std::cout << "\n  x = " << x << "; y = " << y;
+        std::cout << "\n  s = " << s << "; d = " << d;
+        std::cout << "\n  yaw = " << yaw;
+        std::cout << "\n  velocity = " << velocity;
+        std::cout << "\n  lane = " << lane << '\n';
+    }
 };
 
 struct Map {
@@ -134,16 +146,45 @@ struct Map {
     double track_length; // max s in Frenet coordinates
     double lane_width;   // meters
     int lanes_count;     // lanes count in forward direction
-};
 
-struct EgoState {
-    double x;
-    double y;
-    double s;
-    double d;
-    double yaw;
-    double speed;
-    int lane;
+    double max_velocity;
+    unordered_map<int, double> lanes_velocities;
+
+    void updateLanesVelocities(vector<Car> &cars, const EgoState &ego) {
+        // get minimal velocities of nearest cars
+        auto begin = cars.begin();
+        auto end = cars.end();
+        sort(begin, end);
+
+        for (int i = 0; i < lanes_count; ++i) {
+            lanes_velocities[i] = max_velocity;
+        }
+        for (auto it = begin; it < end; ++it) {
+            Car car = *it;
+            if (car.distance < 50.0) {
+                if (car.s > ego.s) {
+                    // other car in front of ego vehicle
+                    lanes_velocities[car.lane] = std::min(lanes_velocities[car.lane], car.v);
+                } else {
+                    // other car behind ego vehicle
+                    lanes_velocities[car.lane] = std::max(lanes_velocities[car.lane], car.v);
+                }
+            }
+        }
+    }
+
+    void print() const {
+        std::cout << "==== MAP ====";
+        std::cout << "\n  track_length = " << track_length;
+        std::cout << "\n  lane_width = " << lane_width;
+        std::cout << "\n  lanes_count = " << lanes_count;
+        std::cout << "\n  max_velocity = " << max_velocity;
+        std::cout << "\n  Lanes Velocities:";
+        for (const auto &item: lanes_velocities) {
+            std::cout << "\n    " << item.first << " - " << item.second;
+        }
+        std::cout << '\n';
+    }
 };
 
 struct Trajectory {
@@ -157,12 +198,16 @@ struct Trajectory {
     float probability;
 
     void print() const {
-        std::cout << "------------------\n";
+        std::cout << "==== Trajectory ====";
+        std::cout << "\n  state = " << state;
+        std::cout << "\n  cost = " << cost;
+        std::cout << "\n  probability = " << probability;
         auto it_x = x.cbegin();
         auto it_y = y.cbegin();
         for (; it_x != x.cend() && it_y != y.cend(); it_x++, it_y++) {
-            std::cout << "  " << *it_x << ", " << *it_y << '\n';
+            std::cout << "\n  " << *it_x << ", " << *it_y;
         }
+        std::cout << '\n';
     }
 
     bool operator<(const Trajectory &tr) const {

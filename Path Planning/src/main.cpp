@@ -30,6 +30,7 @@ int main() {
     map.track_length = 6945.554;
     map.lane_width = 4.0;
     map.lanes_count = 3;
+    map.max_velocity = 22.2;
 
     // Waypoint map to read from
     const string map_file{"../data/highway_map.csv"};
@@ -52,11 +53,10 @@ int main() {
     }
 
     Planner planner(
-            1.0, // planner horizon in seconds
-            22.2, // max velocity
+            1.6, // planner horizon in seconds
             10.0, // max acceleration
-            30.0,  // max jerk
-            0.02 // simulator timestep
+            10.0,  // max jerk
+            0.02 // simulator time step
     );
 
     uWS::Hub h;
@@ -79,6 +79,7 @@ int main() {
                     double car_d = j[1]["d"];
                     double car_yaw = deg2rad(j[1]["yaw"]);
                     double car_speed = j[1]["speed"];
+                    EgoState ego_state{car_x, car_y, car_s, car_d, car_yaw, car_speed, getLane(car_d, map.lane_width)};
 
                     // Previous path data given to the Planner
                     auto previous_path_x = j[1]["previous_path_x"];
@@ -86,13 +87,35 @@ int main() {
                     // Previous path's end s and d values
 //                    double end_path_s = j[1]["end_path_s"];
 //                    double end_path_d = j[1]["end_path_d"];
+                    Trajectory prev_trajectory{previous_path_x, previous_path_y};
 
                     // Sensor Fusion Data, a list of all other cars on the same side of the road.
                     auto sensor_fusion = j[1]["sensor_fusion"];
+                    vector<Car> cars;
+                    cars.reserve(sensor_fusion.size());
+                    for (const auto &sensor_data: sensor_fusion) {
+                        // sensor_data = [ id, x, y, vx, vy, s, d]
 
-                    EgoState ego_state{car_x, car_y, car_s, car_d, car_yaw, car_speed, getLane(car_d, map.lane_width)};
-                    Trajectory prev_trajectory{previous_path_x, previous_path_y};
-                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego_state, map, sensor_fusion);
+                        // filter out not important cars
+                        if (sensor_data[6] < 0 || sensor_data[3] == 0 || sensor_data[4] == 0) {
+                            continue;
+                        }
+
+                        Car car;
+                        car.x = sensor_data[1];
+                        car.y = sensor_data[2],
+                        car.vx = sensor_data[3];
+                        car.vy = sensor_data[4];
+                        car.v = sqrt(car.vx * car.vx + car.vy * car.vy);
+                        car.s = sensor_data[5];
+                        car.d = sensor_data[6];
+                        car.distance = distance(car_x, car_y, car.x, car.y);
+                        car.lane = getLane(sensor_data[6], map.lane_width);
+                        cars.push_back(car);
+                    }
+                    map.updateLanesVelocities(cars, ego_state);
+
+                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego_state, map, cars);
 
                     json msgJson;
                     msgJson["next_x"] = trajectory.x;

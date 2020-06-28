@@ -20,7 +20,6 @@ using std::pair;
 using std::unordered_map;
 
 struct Map;
-struct EgoState;
 struct Trajectory;
 struct Car;
 
@@ -49,24 +48,26 @@ public:
 
     Trajectory getTrajectory(
             const Trajectory &prev_trajectory,
-            const EgoState &ego_state,
+            const Car &ego,
             const Map &map,
             const vector<Car> &cars
     );
 
 private:
     Trajectory keep_lane(const Trajectory &prev_trajectory,
-                         const EgoState &ego_state,
+                         const Car &ego,
                          const Map &map,
-                         const vector<Car> &cars,
                          const vector<double> &tj_start_points_x,
                          const vector<double> &tj_start_points_y,
+                         double &ref_v,
                          double ref_x,
                          double ref_y,
                          double ref_yaw
     );
 
     double get_trajectory_cost(const Trajectory &trajectory, const Map &map) const;
+
+    vector<vector<Trajectory>> get_cars_trajectories(const Map &map, const vector<Car> &cars);
 
 private:
     // constraints
@@ -82,6 +83,8 @@ private:
     // allowed transitions from every state
     static const vector<BEHAVIOR_STATE> transitions[6];
     BEHAVIOR_STATE current_state;
+
+    // ego vehicle state
     double ref_velocity;
 
 };
@@ -91,10 +94,13 @@ struct Car {
     double y;
     double s;
     double d;
+    double yaw;
+
     double vx;
     double vy;
     double v;
-    double distance;
+
+    double distance; // distance to ego vehicle
     int lane;
 
     bool operator<(const Car &str) const {
@@ -116,25 +122,6 @@ struct Car {
         std::cout << "\n  vx = " << vx << "; vy = " << vy << "; v = " << v;
         std::cout << "\n  lane = " << lane;
         std::cout << "\n  distance = " << distance << '\n';
-    }
-};
-
-struct EgoState {
-    double x;
-    double y;
-    double s;
-    double d;
-    double yaw;
-    double velocity;
-    int lane;
-
-    void print() const {
-        std::cout << "==== EGO ====";
-        std::cout << "\n  x = " << x << "; y = " << y;
-        std::cout << "\n  s = " << s << "; d = " << d;
-        std::cout << "\n  yaw = " << yaw;
-        std::cout << "\n  velocity = " << velocity;
-        std::cout << "\n  lane = " << lane << '\n';
     }
 };
 

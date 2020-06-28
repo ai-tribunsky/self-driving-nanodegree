@@ -75,8 +75,18 @@ Trajectory Planner::getTrajectory(
 //                break;
 
             case KEEP_LANE:
-                Trajectory possible_trajectory = keep_lane(prev_trajectory, ego_state, map, cars, tj_start_points_x,
-                                                           tj_start_points_y, ref_x, ref_y, ref_yaw);
+                Trajectory possible_trajectory = keep_lane(
+                        prev_trajectory,
+                        ego_state,
+                        map,
+                        tj_start_points_x,
+                        tj_start_points_y,
+                        ref_velocity
+                ref_x,
+                        ref_y,
+                        ref_yaw
+                );
+                possible_trajectory.state = KEEP_LANE;
                 possible_trajectory.cost = get_trajectory_cost(possible_trajectory, map);
 
                 possible_trajectory.print();
@@ -112,28 +122,28 @@ Trajectory Planner::getTrajectory(
 }
 
 Trajectory Planner::keep_lane(const Trajectory &prev_trajectory,
-                              const EgoState &ego_state,
+                              const Car &ego,
                               const Map &map,
-                              const vector<Car> &cars,
                               const vector<double> &tj_start_points_x,
                               const vector<double> &tj_start_points_y,
+                              double &ref_v,
                               double ref_x,
                               double ref_y,
                               double ref_yaw
 ) {
     std::cout << "\n\n====== KEEP LANE =====\n";
     map.print();
-    ego_state.print();
+    ego.print();
 
     // anchors points for trajectory spline
     vector<double> tj_anchors_points_x{tj_start_points_x};
     vector<double> tj_anchors_points_y{tj_start_points_y};
 
-    int target_lane = ego_state.lane;
+    int target_lane = ego.lane;
     double target_d = target_lane * map.lane_width + 0.5 * map.lane_width;
 
     // create additional anchors points for spline
-    double s_start = ego_state.s;
+    double s_start = ego.s;
     double s_step = 1.5 * map.max_velocity * trajectory_points_count * time_step;
     for (int i = 1; i <= 3; i++) {
         auto xy = getXY(s_start + i * s_step, target_d, map.waypoints_s, map.waypoints_x, map.waypoints_y);
@@ -148,30 +158,28 @@ Trajectory Planner::keep_lane(const Trajectory &prev_trajectory,
     Trajectory possible_trajectory;
     possible_trajectory.x = prev_trajectory.x;
     possible_trajectory.y = prev_trajectory.y;
-    possible_trajectory.cost = 0.0;
-    possible_trajectory.state = KEEP_LANE;
 
     size_t prev_tj_points_count = prev_trajectory.x.size();
     size_t points_to_generate = trajectory_points_count - prev_tj_points_count;
 
-    double lane_velocity = map.lanes_velocities.at(ego_state.lane);
+    double lane_velocity = map.lanes_velocities.at(ego.lane);
 
     double prev_x, prev_y;
     double x = ref_x;
     double y = ref_y;
     for (size_t i = 1; i <= points_to_generate; i++) {
-        if (ref_velocity + max_velocity_delta <= lane_velocity) {
-            ref_velocity += max_velocity_delta;
+        if (ref_v + max_velocity_delta <= lane_velocity) {
+            ref_v += max_velocity_delta;
         } else if (ref_velocity > lane_velocity) {
-            ref_velocity -= max_velocity_delta;
+            ref_v -= max_velocity_delta;
         } else {
-            ref_velocity = lane_velocity;
+            ref_v = lane_velocity;
         }
 
         prev_x = x;
         prev_y = y;
 
-        x += ref_velocity * cos(ref_yaw) * time_step;
+        x += ref_v * cos(ref_yaw) * time_step;
         y = spline(x);
         ref_yaw = atan2(y - prev_y, x - prev_x);
 
@@ -236,4 +244,55 @@ double Planner::get_trajectory_cost(const Trajectory &trajectory, const Map &map
     }
 
     return cost;
+}
+
+vector<vector<Trajectory>>
+Planner::get_cars_trajectories(const Map &map, const vector<Car> &cars) {
+    size_t cars_count = cars.size();
+    vector<vector<Trajectory>> trajectories;
+    trajectories.reserve(cars_count);
+
+    Trajectory prev_trajectory{};
+    vector<double> tj_start_points_x{};
+    vector<double> tj_start_points_y{};
+
+    for (size_t i = 0; i < cars_count; i++) {
+        float base_probability = 1.0;
+        int lane = cars[i].lane;
+        Car car = cars[i];
+
+        // keep lane trajectory
+        Trajectory keep_lane_tj = keep_lane(
+                prev_trajectory,
+                car,
+                map,
+                tj_start_points_x,
+                tj_start_points_y,
+                car.v,
+                car.x,
+                car.y,
+                car.yaw
+        );
+
+        if (lane == 0) {
+            // leftmost position: keep lane and change lane right
+            base_probability /= 2;
+            keep_lane_tj.probability = base_probability;
+
+
+        } else if (lane > 0 && lane < map.lanes_count - 1) {
+            // in the middle of the road: keep lane, change lane right and change lane left
+            base_probability /= 3;
+            keep_lane_tj.probability = base_probability;
+
+        } else if (lane == map.lanes_count - 1) {
+            // rightmost position: keep lane, change lane left
+            base_probability /= 2;
+            keep_lane_tj.probability = base_probability;
+        }
+
+        trajectories[i].push_back(keep_lane_tj);
+    }
+
+    return trajectories;
 }

@@ -73,13 +73,14 @@ int main() {
                     // j[1] is the data JSON object
 
                     // Main car's localization Data
-                    double car_x = j[1]["x"];
-                    double car_y = j[1]["y"];
-                    double car_s = j[1]["s"];
-                    double car_d = j[1]["d"];
-                    double car_yaw = deg2rad(j[1]["yaw"]);
-                    double car_speed = (double)j[1]["speed"] * 0.44704; // to convert mph to m/s
-                    EgoState ego_state{car_x, car_y, car_s, car_d, car_yaw, car_speed, getLane(car_d, map.lane_width)};
+                    Car ego;
+                    ego.x = j[1]["x"];
+                    ego.y = j[1]["y"];
+                    ego.s = j[1]["s"];
+                    ego.d = j[1]["d"];
+                    ego.yaw = deg2rad(j[1]["yaw"]);
+                    ego.v = (double)j[1]["speed"] * 0.44704; // to convert mph to m/s
+                    ego.lane = getLane(ego.d, map.lane_width);
 
                     // Previous path data given to the Planner
                     auto previous_path_x = j[1]["previous_path_x"];
@@ -109,13 +110,13 @@ int main() {
                         car.v = sqrt(car.vx * car.vx + car.vy * car.vy);
                         car.s = sensor_data[5];
                         car.d = sensor_data[6];
-                        car.distance = distance(car_x, car_y, car.x, car.y);
-                        car.lane = getLane(sensor_data[6], map.lane_width);
+                        car.distance = distance(ego.x, ego.y, car.x, car.y);
+                        car.lane = getLane(car.d, map.lane_width);
                         cars.push_back(car);
                     }
-                    map.updateLanesVelocities(cars, ego_state);
+                    map.updateLanesVelocities(cars, ego);
 
-                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego_state, map, cars);
+                    Trajectory trajectory = planner.getTrajectory(prev_trajectory, ego, map, cars);
 
                     json msgJson;
                     msgJson["next_x"] = trajectory.x;

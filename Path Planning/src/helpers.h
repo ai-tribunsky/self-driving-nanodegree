@@ -38,6 +38,8 @@ inline double deg2rad(double x) { return x * M_PI / 180.0; }
 
 inline double rad2deg(double x) { return x * 180.0 / M_PI; }
 
+inline double mph2ms(double mph) { return mph * 0.44704; }
+
 // Calculate distance between two points
 inline double distance(double x1, double y1, double x2, double y2) {
     return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
@@ -157,10 +159,10 @@ inline pair<double, double> getXY(double s, double d, const vector<double> &maps
     return {x, y};
 }
 
-// lane indexing starts from a middle of the road
-// from left to right
-inline int getLane(double d, double lane_width) {
-    return (int) (d / lane_width);
+inline double getPdf(double value, double mean, double std)
+{
+    double exponent = std::exp(-std::pow(value - mean, 2) / (2 * std * std));
+    return (1 / std::sqrt(2 * M_PI * std * std)) * exponent;
 }
 
 #endif  // HELPERS_H

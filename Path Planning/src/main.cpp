@@ -9,6 +9,7 @@
 #include "json.hpp"
 #include "helpers.h"
 
+#include "PathPlanner/Config.h"
 #include "PathPlanner/Planner.h"
 #include "PathPlanner/Trajectory.h"
 
@@ -22,28 +23,15 @@ using std::map;
 int main() {
     uWS::Hub h;
 
-    // settings
-    const char *MAP_FILE_NAME{"../data/highway_map.csv"};
-    const int MAP_WAYPOINTS_COUNT{181};
-    const int MAP_LANES_COUNT{3};
-    const double MAP_LANE_WIDTH{4.0};   // meters
-    const double PLANNING_HORIZON{2.0}; // seconds
-
-    // constraints
-    const double MAX_VELOCITY{22.2};     // m/s
-    const double MAX_ACCELERATION{10.0}; // m/s^2
-    const double MAX_JERK{10.0};         // m/s^3
-
-
     // Load up map values for waypoints x,y,s and d normalized normal vectors
     PathPlanner::Map map = PathPlanner::Map::buildFromFile(
-            MAP_FILE_NAME,
-            MAP_WAYPOINTS_COUNT,
-            MAP_LANES_COUNT,
-            MAP_LANE_WIDTH,
-            MAX_VELOCITY
+            PathPlanner::MAP_FILE_NAME,
+            PathPlanner::MAP_WAYPOINTS_COUNT,
+            PathPlanner::MAP_LANES_COUNT,
+            PathPlanner::MAP_LANE_WIDTH,
+            PathPlanner::MAX_VELOCITY
     );
-    PathPlanner::Planner planner(map, PLANNING_HORIZON);
+    PathPlanner::Planner planner(map, PathPlanner::PLANNING_HORIZON);
 
     auto ws_message_handler = [&planner](uWS::WebSocket<uWS::SERVER> ws, char *message, size_t length, uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.

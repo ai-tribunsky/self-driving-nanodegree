@@ -46,9 +46,8 @@ inline double distance(double x1, double y1, double x2, double y2) {
 }
 
 // Calculate closest waypoint to current x, y position
-inline size_t ClosestWaypoint(double x, double y, const vector<double> &maps_x,
-                              const vector<double> &maps_y) {
-    double closestLen{100000}; //large number
+inline size_t ClosestWaypoint(double x, double y, const vector<double> &maps_x, const vector<double> &maps_y) {
+    double closestLen{100000}; // large number
     size_t closestWaypoint{0};
 
     for (size_t i = 0; i < maps_x.size(); ++i) {
@@ -65,8 +64,7 @@ inline size_t ClosestWaypoint(double x, double y, const vector<double> &maps_x,
 }
 
 // Returns next waypoint of the closest waypoint
-inline size_t NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
-                           const vector<double> &maps_y) {
+inline size_t NextWaypoint(double x, double y, double theta, const vector<double> &maps_x, const vector<double> &maps_y) {
     size_t closestWaypoint = ClosestWaypoint(x, y, maps_x, maps_y);
 
     double map_x = maps_x[closestWaypoint];

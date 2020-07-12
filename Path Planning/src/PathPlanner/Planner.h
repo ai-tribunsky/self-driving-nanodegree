@@ -23,48 +23,36 @@ namespace PathPlanner {
      */
     class Planner {
     public:
-        Planner(Map map, double plan_horizon) : map(std::move(map)), behavior_planner(BehaviorPlanner(plan_horizon)) {
-
-        }
+        Planner(Map map, double planning_horizon) : map(std::move(map)), tracker(Tracker(map)),
+                                                    planning_horizon(planning_horizon) {}
 
         Trajectory run(const json &data) {
             // update ego vehicle state
-            ego.updateState(data);
+            ego.update(data);
 
             // update vehicles states around ego and their trajectories
-            auto sensor_fusion = data["sensor_fusion"];
-            for (const auto &sensor_data: sensor_fusion) {
-                // filter out not important cars
-                // sensor_data = json[id, x, y, vx, vy, s, d]
-                if (sensor_data[6] < 0 || sensor_data[3] == 0 || sensor_data[4] == 0) {
-                    continue;
-                }
+            tracker.update(data["sensor_fusion"]);
 
-                Vehicle vehicle(sensor_data);
-                tracker.updateVehicleState(vehicle);
-            }
-            tracker.update();
-
-
-
-
-
-
-            // Previous path data given to the Planner
+            // previous path data given to the Planner
             auto previous_path_x = data["previous_path_x"];
             auto previous_path_y = data["previous_path_y"];
-            // Previous path's end s and d values
             double end_path_s = data["end_path_s"];
             double end_path_d = data["end_path_d"];
 
-
+            if (previous_path_x.size() < 4) {
+                behavior_planner.run(ego);
+            }
         }
 
     private:
         Map map;
         Vehicle ego;
         Tracker tracker;
+
+        // behavior planner
+        double planning_horizon;
         BehaviorPlanner behavior_planner;
+
     };
 
 }

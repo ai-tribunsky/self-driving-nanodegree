@@ -7,8 +7,24 @@
 
 namespace PathPlanner {
 
+    struct State {
+        double position;
+        double velocity;
+        double acceleration;
+        double jerk;
+        double timestamp;
+    };
+
     class Trajectory {
 
+    public:
+        State start;
+        State end;
+
+    public:
+        Trajectory() = default;
+
+        Trajectory(const State &start, const State &end) : start(start), end(end) {}
     };
 
 }

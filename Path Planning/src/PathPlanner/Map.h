@@ -74,6 +74,10 @@ namespace PathPlanner {
 
             return map;
         }
+
+        int getLane(double d) const {
+            return (int) (d / lane_width);
+        }
     };
 
 }

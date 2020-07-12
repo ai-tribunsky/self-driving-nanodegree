@@ -5,8 +5,11 @@
 #ifndef PATH_PLANNING_BEHAVIORPLANNER_H
 #define PATH_PLANNING_BEHAVIORPLANNER_H
 
-#include "Behaviors.h"
+#include "Config.h"
+#include "Vehicle.h"
+#include "Tracker.h"
 #include "Trajectory.h"
+
 
 namespace PathPlanner {
     /**
@@ -16,12 +19,46 @@ namespace PathPlanner {
      */
     class BehaviorPlanner {
     public:
-        explicit BehaviorPlanner(double plan_horizon) : plan_horizon(plan_horizon) {}
+        Map map;
 
-        BEHAVIOR_STATE run() {}
+    public:
+        explicit BehaviorPlanner(Map map) : map(std::move(map)) {}
+
+        BEHAVIOR_STATE run(const Vehicle &ego, const Tracker &tracker, double end_end_s, double path_end_d) {
+            int ego_lane = map.getLane(ego.d);
+
+            auto state_transitions = transitions[current_state];
+            for (const auto &state: state_transitions) {
+                switch (state) {
+                    case STOP:
+                        break;
+
+                    case KEEP_LANE:
+                        break;
+
+                    case CHANGE_LANE_LEFT:
+                        if (ego_lane == 0) { // leftmost lane
+                            // trajectory not feasible
+                            continue;
+                        }
+
+
+                        break;
+
+                    case CHANGE_LANE_RIGHT:
+                        if (ego_lane == map.lanes_count - 1) { // rightmost lane
+                            // trajectory not feasible
+                            continue;
+                        }
+
+
+                        break;
+                }
+            }
+        }
 
     private:
-        double plan_horizon;
+        BEHAVIOR_STATE current_state{STOP};
     };
 }
 #endif //PATH_PLANNING_BEHAVIORPLANNER_H
